@@ -1,5 +1,5 @@
 {
-  "name": "cloudflare-traffic",
+  "name": "wisdomhall-project",
   "type": "module",
   "private": true,
   "scripts": {
@@ -10,8 +10,17 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "echarts": "^6.0.0",
+    "mysql2": "^3.16.2",
     "nuxt": "^4.3.0",
     "vue": "^3.5.27",
     "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/echarts": "^4.9.22",
+    "@types/node": "^25.0.10",
+    "vite-plugin-dts": "^4.5.4"
   }
 }
