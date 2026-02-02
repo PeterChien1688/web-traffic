@@ -6,8 +6,27 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "3001:3000" # 重大修正：左邊是主機(3001)，右邊是容器內部(3000)
+      - "3001:3000" # 外部 3001 -> 內部 3000
     environment:
-      # 為了保險起見，這兩行可以先刪掉，或者改回 3000
+      # --- Nuxt 基本設定 ---
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
+      - NUXT_SECRET=my-super-secret-key-change-this
+
+      # --- 主資料庫 (app_db) ---
+      # 關鍵修正：將 Host 指向 172.17.0.1 (Docker Host Gateway) 確保穩定連線
+      - NUXT_DB_HOST=172.17.0.1
+      - NUXT_DB_USER=root
+      - NUXT_DB_PASSWORD=!Wis@53952935
+      - NUXT_DB_NAME=app_db
+
+      # --- 流量資料庫 (traffic_db) ---
+      - TRAFFIC_DB_HOST=172.17.0.1
+      - TRAFFIC_DB_USER=traffic_admin
+      - TRAFFIC_DB_PASSWORD=Traffic-2026-Go
+      - TRAFFIC_DB_NAME=traffic_db
+
+      # --- Cloudflare 設定 (程式需要讀取這些變數) ---
+      - CF_API_TOKEN=5w7ureqSAn5UbUg6u3zlmlXtB9-EjcYn5y2vqENX
+      - CF_ZONE_ID_TW=0cea2e92a413ce621b8633811b10bdd9
+      - CF_ZONE_ID_MY=156893be0036d4e6a7975d2bfbf91aba
