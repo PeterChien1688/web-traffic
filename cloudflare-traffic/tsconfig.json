@@ -1,0 +1,14 @@
+{
+  // 關鍵：繼承 Nuxt 自動產生的 TypeScript 設定
+  // 這會包含所有的 auto-imports (useFetch)、路徑別名 (@, ~) 以及模組解析
+  "extends": "./.nuxt/tsconfig.json",
+
+  "compilerOptions": {
+    // 建議開啟嚴格模式，讓 TS 檢查更準確
+    "strict": true,
+
+    // 如果你有自訂的型別定義檔，可以在這裡加入
+    // 例如："types": ["node", "google.maps"]
+    "types": ["node"]
+  }
+}

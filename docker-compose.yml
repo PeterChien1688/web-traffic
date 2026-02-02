@@ -1,0 +1,12 @@
+services:
+  web-traffic:
+    container_name: web-traffic
+    build:
+      context: ./cloudflare-traffic
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000" # 暫時對應到 3000，之後會配合 Nginx 修改
+    environment:
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3000
