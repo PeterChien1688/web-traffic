@@ -6,7 +6,8 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "3001:3001" # 修改處：Host:Container 都改為 3001
+      - "3001:3000" # 重大修正：左邊是主機(3001)，右邊是容器內部(3000)
     environment:
+      # 為了保險起見，這兩行可以先刪掉，或者改回 3000
       - NUXT_HOST=0.0.0.0
-      - NUXT_PORT=3001 # 修改處
+      - NUXT_PORT=3000
