@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "3000:3000" # 暫時對應到 3000，之後會配合 Nginx 修改
+      - "3001:3001" # 修改處：Host:Container 都改為 3001
     environment:
       - NUXT_HOST=0.0.0.0
-      - NUXT_PORT=3000
+      - NUXT_PORT=3001 # 修改處

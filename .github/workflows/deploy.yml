@@ -18,10 +18,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "."
+          # 修正處：scp-action 不支援 exclude 參數，必須寫在 source 裡，並用驚嘆號 ! 來排除
+          source: ".,!node_modules,!.git,!.github,!.output,!.nuxt"
           target: "~/web-server/web-traffic"
-          # 排除不需要傳送的垃圾檔案，加快速度
-          exclude: ".git, .github, node_modules, .output, .nuxt"
 
       - name: Remote SSH Commands (遠端執行重啟指令)
         uses: appleboy/ssh-action@master
