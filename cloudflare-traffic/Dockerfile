@@ -1,5 +1,5 @@
-# 使用 Node.js 官方輕量映像檔
-FROM node:18-alpine
+# 修改處：升級到 node:20-alpine 以支援最新的 Nuxt/Vite
+FROM node:20-alpine
 
 # 設定工作目錄
 WORKDIR /app
@@ -21,5 +21,5 @@ ENV NUXT_PORT=3000
 # 開放 Port
 EXPOSE 3000
 
-# 啟動服務 (執行 output 內的 server)
+# 啟動服務
 CMD ["node", ".output/server/index.mjs"]
