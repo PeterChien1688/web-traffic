@@ -1,0 +1,44 @@
+name: Deploy to Ubuntu Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (下載程式碼)
+        uses: actions/checkout@v3
+
+      - name: Copy files via SSH (傳送檔案到伺服器)
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "."
+          target: "~/web-server/web-traffic"
+          # 排除不需要傳送的垃圾檔案，加快速度
+          exclude: ".git, .github, node_modules, .output, .nuxt"
+
+      - name: Remote SSH Commands (遠端執行重啟指令)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            # 1. 進入專案目錄
+            cd ~/web-server/web-traffic
+
+            # 2. 停止舊容器
+            docker compose down
+
+            # 3. 重新建置並啟動新容器
+            docker compose up -d --build
+
+            # 4. 清除沒用到的舊映像檔 (節省空間)
+            docker image prune -f
