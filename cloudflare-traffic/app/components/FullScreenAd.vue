@@ -57,7 +57,7 @@ const portraitVideo = "/videos/portrait.mp4";
 // 1000 * 60 * 30 = 30 分鐘
 // 1000 * 60 * 60 = 1 小時
 // 如果您希望測試方便，可以先設為 1000 * 10 (10秒)
-const AD_COOLDOWN = 1000 * 60 * 30; // 30 分鐘內不重複顯示
+const AD_COOLDOWN = 1000 * 60 * 1; // 30 分鐘內不重複顯示
 
 // --- 狀態 ---
 const isOpen = ref(false);
