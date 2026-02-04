@@ -113,4 +113,5 @@ const handleLogin = async () => {
       登入
     </button>
   </div>
+  <FullScreenAd />
 </template>

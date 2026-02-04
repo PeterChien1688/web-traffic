@@ -27,5 +27,5 @@ services:
 
       # --- Cloudflare 設定 (🔥 加上 NUXT_ 前綴) ---
       - NUXT_CF_API_TOKEN=5w7ureqSAn5UbUg6u3zlmlXtB9-EjcYn5y2vqENX
-      - NUXT_CF_ZONE_ID_TW=0cea2e92a413ce621b8633811b10bdd9
+      - NUXT_CF_ZONE_ID_TW=c244911f7e3a7cf3f1ade0b4ab43982f
       - NUXT_CF_ZONE_ID_MY=156893be0036d4e6a7975d2bfbf91aba
