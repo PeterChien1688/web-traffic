@@ -24,7 +24,6 @@
 import { ref, onMounted, onUnmounted } from "vue";
 
 // --- 設定區 ---
-// 確保你的 public/videos 資料夾內有這兩個檔案
 const landscapeVideo = "/videos/landscape.mp4";
 const portraitVideo = "/videos/portrait.mp4";
 
@@ -34,32 +33,36 @@ const isMuted = ref(true);
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
 
-// --- 核心功能：開啟廣告 ---
+// --- 動作：開啟廣告 ---
 const openAd = () => {
-  // 【新增功能】檢查 SessionStorage
-  // 如果已經有紀錄 'ad_watched'，代表這次工作階段看過了，直接結束函式
+  // 1. Session 檢查：如果已經看過，就完全不執行後續動作
   if (sessionStorage.getItem("ad_watched")) {
     console.log("廣告本次 Session 已播放過，不再彈出");
     return;
   }
 
-  // 1. 決定影片來源
-  handleResize();
+  // 2. 決定影片來源 (初始化)
+  updateVideoSrc();
 
-  // 2. 開啟視窗
+  // 3. 開啟視窗
   isOpen.value = true;
 
-  // 【新增功能】寫入紀錄，標記為已看過
+  // 4. 標記已讀
   sessionStorage.setItem("ad_watched", "true");
 
-  // 3. 播放影片
+  // 5. 強制靜音並播放
   setTimeout(() => {
     if (videoRef.value) {
-      videoRef.value.currentTime = 0;
-      videoRef.value.muted = true; // 自動播放必須靜音
+      const video = videoRef.value;
+
+      // 設定屬性確保自動播放
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      video.currentTime = 0;
       isMuted.value = true;
 
-      const playPromise = videoRef.value.play();
+      const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch((e) => console.warn("自動播放受阻:", e));
       }
@@ -78,42 +81,59 @@ const unmuteVideo = () => {
 // --- 動作：關閉廣告 ---
 const closeAd = () => {
   isOpen.value = false;
+
+  // 關閉後稍等動畫結束，暫停影片
   setTimeout(() => {
-    if (videoRef.value) videoRef.value.pause();
+    if (videoRef.value) {
+      videoRef.value.pause();
+    }
   }, 600);
 };
 
-// --- 響應式與初始化 ---
-const handleResize = () => {
+// --- 核心邏輯：更新影片來源 ---
+const updateVideoSrc = () => {
   if (typeof window === "undefined") return;
+
   const width = window.innerWidth;
   const height = window.innerHeight;
   const targetSrc = width >= height ? landscapeVideo : portraitVideo;
 
+  // 只有當「來源真的改變」時才動作
   if (currentVideoSrc.value !== targetSrc) {
     currentVideoSrc.value = targetSrc;
+
+    // 【關鍵修正】
+    // 只有當「廣告是開啟的 (isOpen為真)」才執行 reload 和 play
+    // 這樣可以防止：使用者關閉廣告後，調整視窗大小，影片卻在背景偷跑的問題
     if (isOpen.value && videoRef.value) {
       videoRef.value.load();
+
+      // 確保切換影片後維持靜音狀態，避免突然大聲
+      videoRef.value.muted = isMuted.value;
+
       videoRef.value.play().catch(() => {});
     }
   }
 };
 
+// --- 事件監聽 ---
 onMounted(() => {
-  // 延遲 0.5 秒後嘗試開啟廣告
+  // 延遲執行，給瀏覽器一點緩衝時間
   setTimeout(() => {
     openAd();
   }, 500);
-  window.addEventListener("resize", handleResize);
+
+  // 監聽視窗變化，觸發 updateVideoSrc
+  window.addEventListener("resize", updateVideoSrc);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
+  window.removeEventListener("resize", updateVideoSrc);
 });
 </script>
 
 <style scoped>
-/* 維持原本的 CSS 樣式 */
+/* 樣式保持不變 */
 .video-container {
   position: fixed;
   top: 0;
