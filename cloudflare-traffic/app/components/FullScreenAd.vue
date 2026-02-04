@@ -5,11 +5,30 @@
       class="video-container"
       :class="{ 'is-open': isOpen }"
     >
-      <button class="close-btn" @click="closeAd">✕</button>
-
-      <div v-if="isMuted && isOpen" class="unmute-overlay">
-        <button class="unmute-btn" @click="unmuteVideo">🔊 點擊開啟聲音</button>
-      </div>
+      <button class="close-btn" @click="closeAd" aria-label="關閉廣告">
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M18 6L6 18"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M6 6L18 18"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
 
       <video
         ref="videoRef"
@@ -18,7 +37,6 @@
         playsinline
         class="bg-video"
         @ended="closeAd"
-        @click="unmuteVideo"
       >
         <source :src="currentVideoSrc" type="video/mp4" />
       </video>
@@ -37,7 +55,7 @@ const portraitVideo = "/videos/portrait.mp4";
 
 // --- 狀態 ---
 const isOpen = ref(false);
-const isMuted = ref(true);
+// 【已移除】isMuted 狀態
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
 
@@ -50,7 +68,6 @@ const openAd = async () => {
   }
 
   // 2. 決定影片來源
-  // 先取得正確的影片路徑
   const width = window.innerWidth;
   const height = window.innerHeight;
   currentVideoSrc.value = width >= height ? landscapeVideo : portraitVideo;
@@ -58,47 +75,38 @@ const openAd = async () => {
   // 3. 開啟視窗 (觸發 CSS 動畫)
   isOpen.value = true;
 
-  // 4. 寫入 Session 紀錄
+  // 4. 寫入紀錄
   sessionStorage.setItem("ad_watched", "true");
 
-  // 5. 【關鍵修正 2】等待 DOM 更新後，強制載入並播放
-  await nextTick(); // 等待 Vue 把 src 屬性綁定上去
+  // 5. 等待 DOM 更新後，強制載入並播放
+  await nextTick();
 
   if (videoRef.value) {
     const video = videoRef.value;
 
-    // 確保屬性正確
+    // 確保屬性正確 (即使影片無聲，瀏覽器政策仍要求 muted 才能自動播放)
     video.muted = true;
     video.playsInline = true;
-    isMuted.value = true;
 
-    // 強制重整影片來源 (重要！否則換了 src 也不會播)
+    // 強制重整影片來源
     video.load();
 
-    // 稍微延遲一點點，等待 load 完成且視窗動畫開始後再 play
     setTimeout(() => {
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => console.log("自動播放成功"))
           .catch((e) => {
-            console.warn("自動播放被阻擋或失敗，嘗試再次播放:", e);
-            // 如果失敗，靜音再試一次 (有些瀏覽器很頑固)
-            video.muted = true;
-            video.play().catch((e2) => console.error("最終播放失敗:", e2));
+            console.warn("自動播放受阻，嘗試再次播放:", e);
+            // 如果失敗再試一次
+            video.play().catch(() => {});
           });
       }
-    }, 150); // 150ms 的緩衝對使用者無感，但對瀏覽器很重要
+    }, 150);
   }
 };
 
-// --- 動作：解除靜音 ---
-const unmuteVideo = () => {
-  if (videoRef.value) {
-    videoRef.value.muted = false;
-    isMuted.value = false;
-  }
-};
+// 【已移除】unmuteVideo 函式
 
 // --- 動作：關閉廣告 ---
 const closeAd = () => {
@@ -120,17 +128,15 @@ const handleResize = () => {
     currentVideoSrc.value = targetSrc;
 
     // 只有當「廣告開啟中」才執行重載
-    // 防止關閉後拉動視窗導致背景偷播
     if (isOpen.value && videoRef.value) {
       videoRef.value.load();
-      videoRef.value.muted = isMuted.value;
       videoRef.value.play().catch(() => {});
     }
   }
 };
 
 onMounted(() => {
-  // 延遲執行，確保頁面完全載入
+  // 延遲執行
   setTimeout(() => {
     openAd();
   }, 500);
@@ -144,7 +150,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 樣式區完全不用動 */
+/* 容器與影片樣式保持不變 */
 .video-container {
   position: fixed;
   top: 0;
@@ -188,53 +194,60 @@ onUnmounted(() => {
   pointer-events: none;
   z-index: 2;
 }
+
+/* 【修改點 2】全新的美化關閉按鈕樣式 */
 .close-btn {
   position: absolute;
   top: 30px;
   right: 30px;
   z-index: 20;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+
+  /* 外觀基礎設定 */
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  font-size: 20px;
+  border: none;
   cursor: pointer;
-}
-.unmute-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
+
+  /* 顏色與材質 */
+  background: rgba(0, 0, 0, 0.5); /* 半透明黑底 */
+  color: rgba(255, 255, 255, 0.9); /* 圖示顏色 */
+  backdrop-filter: blur(8px); /* 毛玻璃效果 (現代感) */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 增加立體感陰影 */
+
+  /* 讓圖示置中 */
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+
+  /* 動畫設定 */
+  transition: all 0.3s ease; /* 滑鼠經過的平滑過渡 */
+  animation: pulse-red 2.5s infinite; /* 套用呼吸燈動畫 */
 }
-.unmute-btn {
-  pointer-events: auto;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(4px);
-  border: 2px solid white;
+
+/* 滑鼠經過時的變化 */
+.close-btn:hover {
+  background-color: rgba(220, 20, 60, 0.8); /* 變成稍微鮮豔的紅色 */
   color: white;
-  padding: 12px 24px;
-  border-radius: 50px;
-  font-weight: bold;
-  cursor: pointer;
-  animation: pulse 2s infinite;
+  box-shadow: 0 6px 20px rgba(220, 20, 60, 0.5); /* 紅色光暈 */
 }
-@keyframes pulse {
+
+/* 【修改點 3】新的呼吸燈動畫關鍵影格 */
+@keyframes pulse-red {
   0% {
     transform: scale(1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.08); /* 稍微放大 */
+    /* 加上一層淡淡的紅色光暈，營造呼吸感 */
+    box-shadow: 0 8px 25px rgba(220, 20, 60, 0.6);
   }
   100% {
     transform: scale(1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   }
 }
+
+/* 【已移除】unmute-overlay, unmute-btn 相關樣式 */
 </style>
