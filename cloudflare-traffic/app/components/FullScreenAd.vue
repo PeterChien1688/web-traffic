@@ -2,13 +2,7 @@
   <ClientOnly>
     <div class="ad-container" :class="{ 'is-open': isOpen }">
       <button class="close-btn" @click="closeAd" aria-label="關閉廣告">
-        <svg
-          width="28"
-          height="28"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
             d="M18 6L6 18"
             stroke="currentColor"
@@ -133,7 +127,7 @@ const closeAd = () => {
 const initScene = (mainImgObj) => {
   if (!gridContainerRef.value) return;
 
-  // 清空舊的卡片 (只刪除 .card，保留背景層)
+  // 清空舊的卡片
   const oldCards = gridContainerRef.value.querySelectorAll(".card");
   oldCards.forEach((el) => el.remove());
 
@@ -158,7 +152,7 @@ const initScene = (mainImgObj) => {
     cardH = h / rows;
   const startScale = (w * CONFIG.startSizeRatio) / cardW;
 
-  // 【優化重點 1】判斷是否為手機，決定要讀取哪一個資料夾的圖片
+  // 判斷是否為手機，決定要讀取哪一個資料夾的圖片
   const isMobile = window.innerWidth < 768;
   const folderName = isMobile ? "mobile" : "desktop";
 
@@ -180,7 +174,7 @@ const initScene = (mainImgObj) => {
     const startX = w / 2 + w * 0.4 * Math.cos(angle);
     const startY = h / 2 + h * 0.4 * Math.sin(angle);
 
-    // 【優化重點 2】加上 translateZ(0) 啟用硬體加速
+    // 加上 translateZ(0) 啟用硬體加速
     card.style.transform = `translate3d(${startX - targetX - cardW / 2}px, ${startY - targetY - cardH / 2}px, 800px) scale(${startScale})`;
 
     const flipper = document.createElement("div");
@@ -189,8 +183,7 @@ const initScene = (mainImgObj) => {
     const front = document.createElement("div");
     front.className = "front";
 
-    // 【優化重點 3】動態路徑：根據裝置讀取 /mobile/ 或 /desktop/
-    // 檔名補零邏輯 (001.jpg ~ 049.jpg)
+    // 動態路徑
     const imgIndex = (i + 1).toString().padStart(3, "0");
     const tileUrl = `/tiles/${folderName}/${imgIndex}.jpg`;
 
@@ -362,11 +355,10 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* --- 卡片樣式 (強制優化) --- */
+/* --- 卡片樣式 --- */
 :deep(.card) {
   position: absolute;
   transform-style: preserve-3d;
-  /* 告訴瀏覽器這些屬性會變化，提前準備 */
   will-change: transform, opacity;
   transition:
     transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1),
@@ -402,7 +394,6 @@ onMounted(() => {
 :deep(.front) {
   background-size: cover;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  /* 電腦版保留陰影 */
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -412,39 +403,6 @@ onMounted(() => {
   height: 100.5%;
   left: -0.25%;
   top: -0.25%;
-}
-
-/* --- 手機版 CSS 強制優化區 (關鍵) --- */
-@media screen and (max-width: 768px) {
-  /* 1. 移除陰影 (效能殺手) */
-  :deep(.front) {
-    box-shadow: none !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.1); /* 用淡邊框取代陰影 */
-  }
-
-  /* 2. 移除關閉按鈕的毛玻璃與複雜效果 */
-  .close-btn {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  }
-
-  /* 3. 簡化呼吸燈 */
-  @keyframes pulse-white {
-    0% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 0.9;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
 }
 
 /* --- 文字層 --- */
@@ -523,14 +481,14 @@ onMounted(() => {
   letter-spacing: 1px;
 }
 
-/* --- 關閉按鈕 --- */
+/* --- 關閉按鈕 (電腦版預設) --- */
 .close-btn {
   position: absolute;
   top: 30px;
   right: 30px;
   z-index: 200;
   width: 56px;
-  height: 56px;
+  height: 56px; /* 電腦版大小 */
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -543,10 +501,15 @@ onMounted(() => {
   justify-content: center;
   transition: all 0.3s ease;
   animation: pulse-white 2s infinite;
-
-  /* 強制 GPU 渲染，防止閃爍 */
   transform: translateZ(0);
   will-change: transform;
+}
+
+/* 【修改 2】SVG 圖示大小由 CSS 控制 */
+.close-btn svg {
+  width: 28px;
+  height: 28px;
+  transition: all 0.3s ease;
 }
 
 .close-btn:hover {
@@ -599,5 +562,58 @@ onMounted(() => {
   background: #ffbf00;
   color: #000;
   box-shadow: 0 0 15px rgba(255, 191, 0, 0.6);
+}
+
+/* --- 【修改 3】手機版 (寬度 < 768px) 強制優化與調整 --- */
+@media screen and (max-width: 768px) {
+  /* 1. 移除卡片陰影 (效能優化) */
+  :deep(.front) {
+    box-shadow: none !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* 2. 縮小關閉按鈕並移除毛玻璃 (效能與尺寸優化) */
+  .close-btn {
+    width: 40px; /* 縮小按鈕容器 */
+    height: 40px;
+    top: 20px; /* 調整位置 */
+    right: 20px;
+    backdrop-filter: none !important; /* 移除毛玻璃 */
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.95); /* 提高不透明度 */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* 簡化陰影 */
+  }
+
+  /* 3. 縮小 SVG 圖示 */
+  .close-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* 4. 簡化手機版呼吸燈 (減少重繪區域) */
+  @keyframes pulse-white {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* 5. 微調文字大小 (避免手機上過大) */
+  .line-main {
+    font-size: 5vh;
+    margin-bottom: 3vh;
+  }
+  .line-list {
+    font-size: 2.5vh;
+    margin: 1vh 0;
+  }
 }
 </style>
