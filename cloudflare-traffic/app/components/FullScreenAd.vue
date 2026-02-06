@@ -1,10 +1,6 @@
 <template>
   <ClientOnly>
-    <div
-      ref="containerRef"
-      class="video-container"
-      :class="{ 'is-open': isOpen }"
-    >
+    <div class="ad-container" :class="{ 'is-open': isOpen }">
       <button class="close-btn" @click="closeAd" aria-label="關閉廣告">
         <svg
           width="28"
@@ -30,122 +26,280 @@
         </svg>
       </button>
 
-      <div v-if="isVideoEnded" class="cta-wrapper">
-        <a
-          href="https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104"
-          class="cta-btn"
-        >
-          至50期雜誌 ➔
-        </a>
+      <div id="stage">
+        <div ref="gridContainerRef" id="grid-container">
+          <div ref="bgGuideLayerRef" id="bg-guide-layer"></div>
+          <div ref="finalLayerRef" id="final-perfect-layer"></div>
+        </div>
       </div>
 
-      <video
-        ref="videoRef"
-        muted
-        autoplay
-        playsinline
-        class="bg-video"
-        @ended="onVideoEnded"
+      <div
+        id="ad-overlay"
+        :style="{ pointerEvents: isBtnVisible ? 'auto' : 'none' }"
       >
-        <source :src="currentVideoSrc" type="video/mp4" />
-      </video>
+        <div ref="darkMaskRef" id="dark-mask"></div>
 
-      <div class="overlay"></div>
+        <div class="text-container">
+          <div class="ad-line line-main" id="text1">閱讀理解雜誌</div>
+
+          <div class="list-group">
+            <div class="ad-line line-list" id="text2">50 期專業內容</div>
+            <div class="ad-line line-list" id="text3">50+ 位跨領域專家</div>
+            <div class="ad-line line-list" id="text4">1,000 篇嚴選文本</div>
+            <div class="ad-line line-list" id="text5">5,000+ 天的深耕</div>
+            <div class="ad-line line-list" id="text6">1,500 萬字 的淬鍊</div>
+          </div>
+
+          <div class="ad-line line-footer" id="text7">
+            陪伴 45 萬名師生累積知識的厚度<br />
+            這一切在數位學習系統都看得到
+          </div>
+
+          <a
+            href="https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104"
+            target="_blank"
+            class="cta-button"
+            :class="{ visible: isBtnVisible }"
+          >
+            至50期雜誌 ➔
+          </a>
+        </div>
+      </div>
     </div>
   </ClientOnly>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, onMounted } from "vue";
 
 // --- 設定區 ---
-const landscapeVideo = "/videos/landscape.mp4";
-const portraitVideo = "/videos/portrait.mp4";
-const AD_COOLDOWN = 1000 * 60 * 30; // 30 分鐘冷卻時間
+const AD_COOLDOWN = 1000 * 60 * 1; // 30分鐘冷卻
+// 注意：圖片路徑需加上 '/' 代表從 public 根目錄開始
+const CONFIG = {
+  mainImg: "/main.jpg",
+  totalCards: 49,
+  startSizeRatio: 0.5,
+  flyInterval: 80,
+  opacityDuration: 0.3,
+  waitBeforeBg: 300,
+  waitBeforeFlip: 1000,
+  flipInterval: 40,
+  waitBeforeText: 800,
+  textStep: 400,
+  ellipseRatio: 0.35,
+};
 
-// --- 狀態 ---
+// --- Vue Refs ---
 const isOpen = ref(false);
-const isVideoEnded = ref(false);
-const currentVideoSrc = ref("");
-const videoRef = ref(null);
+const isBtnVisible = ref(false);
+const gridContainerRef = ref(null);
+const bgGuideLayerRef = ref(null);
+const finalLayerRef = ref(null);
+const darkMaskRef = ref(null);
 
 // --- 動作：開啟廣告 ---
 const openAd = async () => {
+  // 1. Session / LocalStorage 檢查
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
 
+  // 如果在冷卻時間內，則不執行
   if (lastWatchedTime && now - parseInt(lastWatchedTime) < AD_COOLDOWN) {
     return;
   }
 
-  isVideoEnded.value = false;
-
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  currentVideoSrc.value = width >= height ? landscapeVideo : portraitVideo;
-
+  // 2. 開啟視窗
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
 
-  await nextTick();
-  if (videoRef.value) {
-    const video = videoRef.value;
-    video.muted = true;
-    video.playsInline = true;
-    video.load();
+  // 3. 開始載入圖片並執行動畫
+  try {
+    const mainImgObj = await loadImage(CONFIG.mainImg);
 
-    setTimeout(() => {
-      video.play().catch(() => video.play().catch(() => {}));
-    }, 150);
+    // 設定背景圖
+    if (bgGuideLayerRef.value)
+      bgGuideLayerRef.value.style.backgroundImage = `url(${CONFIG.mainImg})`;
+    if (finalLayerRef.value)
+      finalLayerRef.value.style.backgroundImage = `url(${CONFIG.mainImg})`;
+
+    // 初始化場景
+    initScene(mainImgObj);
+  } catch (e) {
+    console.error("圖片載入失敗，請確認 public 資料夾", e);
   }
-};
-
-// --- 動作：影片播放結束 ---
-const onVideoEnded = () => {
-  isVideoEnded.value = true;
 };
 
 // --- 動作：關閉廣告 ---
 const closeAd = () => {
   isOpen.value = false;
-  setTimeout(() => {
-    isVideoEnded.value = false;
-    if (videoRef.value) videoRef.value.pause();
-  }, 600);
+  // 關閉後可以選擇是否要重置 DOM，這裡簡單處理，下次重新整理頁面才會重播
 };
 
-// --- 響應式處理 ---
-const handleResize = () => {
-  if (typeof window === "undefined") return;
+// --- 動畫核心邏輯 (移植自您的 JS) ---
+const initScene = (mainImgObj) => {
+  if (!gridContainerRef.value) return;
 
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const targetSrc = width >= height ? landscapeVideo : portraitVideo;
+  // 計算尺寸
+  const imgRatio = mainImgObj.width / mainImgObj.height;
+  const maxW = window.innerWidth * 0.9;
+  const maxH = window.innerHeight * 0.9;
+  let w = maxW,
+    h = w / imgRatio;
+  if (h > maxH) {
+    h = maxH;
+    w = h * imgRatio;
+  }
 
-  if (currentVideoSrc.value !== targetSrc) {
-    currentVideoSrc.value = targetSrc;
-    if (isOpen.value && videoRef.value && !isVideoEnded.value) {
-      videoRef.value.load();
-      videoRef.value.play().catch(() => {});
-    }
+  // 設定容器尺寸
+  gridContainerRef.value.style.width = `${w}px`;
+  gridContainerRef.value.style.height = `${h}px`;
+
+  const cols = 7,
+    rows = 7;
+  const cardW = w / cols,
+    cardH = h / rows;
+  const startScale = (w * CONFIG.startSizeRatio) / cardW;
+
+  // 建立 49 張卡片
+  for (let i = 0; i < CONFIG.totalCards; i++) {
+    const r = Math.floor(i / cols),
+      c = i % cols;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.width = `${cardW}px`;
+    card.style.height = `${cardH}px`;
+
+    const targetX = c * cardW,
+      targetY = r * cardH;
+    card.style.left = `${targetX}px`;
+    card.style.top = `${targetY}px`;
+
+    // 隨機散落位置
+    const angle = Math.random() * Math.PI * 2;
+    const startX = w / 2 + w * 0.4 * Math.cos(angle);
+    const startY = h / 2 + h * 0.4 * Math.sin(angle);
+
+    card.style.transform = `translate3d(${startX - targetX - cardW / 2}px, ${startY - targetY - cardH / 2}px, 800px) scale(${startScale})`;
+
+    const flipper = document.createElement("div");
+    flipper.className = "flipper";
+
+    const front = document.createElement("div");
+    front.className = "front";
+    // 注意路徑：/tiles/001.jpg
+    const tileUrl = `/tiles/${(i + 1).toString().padStart(3, "0")}.jpg`;
+    front.style.backgroundImage = `url(${tileUrl})`;
+
+    const back = document.createElement("div");
+    back.className = "back";
+    back.style.backgroundImage = `url(${CONFIG.mainImg})`;
+    back.style.backgroundSize = `${w}px ${h}px`;
+    back.style.backgroundPosition = `-${targetX}px -${targetY}px`;
+
+    flipper.appendChild(front);
+    flipper.appendChild(back);
+    card.appendChild(flipper);
+    gridContainerRef.value.appendChild(card);
+  }
+
+  // 執行序列動畫
+  runAnimationSequence();
+};
+
+const runAnimationSequence = () => {
+  // 由於卡片是動態生成的，需要從 DOM 抓取
+  const cards = gridContainerRef.value.querySelectorAll(".card");
+
+  // 1. 卡片歸位
+  cards.forEach((card, i) => {
+    setTimeout(() => {
+      card.classList.add("visible");
+      card.style.transform = `translate3d(0, 0, 0) scale(1)`;
+    }, i * CONFIG.flyInterval);
+  });
+
+  const flyCompleteTime = (cards.length - 1) * CONFIG.flyInterval + 1200;
+
+  setTimeout(() => {
+    // 2. 顯示背景參考層
+    if (bgGuideLayerRef.value) bgGuideLayerRef.value.classList.add("visible");
+
+    setTimeout(() => {
+      // 3. 翻轉卡片
+      let indices = Array.from({ length: cards.length }, (_, k) => k);
+      shuffleArray(indices);
+
+      indices.forEach((cardIndex, i) => {
+        setTimeout(() => {
+          if (cards[cardIndex]) cards[cardIndex].classList.add("flipped");
+        }, i * CONFIG.flipInterval);
+      });
+
+      // 4. 翻轉完成後，顯示最終完美層與文字
+      setTimeout(
+        () => {
+          if (finalLayerRef.value) finalLayerRef.value.classList.add("visible");
+          setTimeout(showTextSequence, CONFIG.waitBeforeText);
+        },
+        cards.length * CONFIG.flipInterval * 0.8,
+      );
+    }, CONFIG.waitBeforeFlip);
+  }, flyCompleteTime + CONFIG.waitBeforeBg);
+};
+
+const showTextSequence = () => {
+  if (darkMaskRef.value) darkMaskRef.value.style.opacity = "1";
+
+  // 依序顯示文字
+  for (let i = 1; i <= 7; i++) {
+    setTimeout(
+      () => {
+        const el = document.getElementById(`text${i}`);
+        if (el) el.classList.add("visible");
+      },
+      (i - 1) * CONFIG.textStep,
+    );
+  }
+
+  // 文字顯示完畢後，顯示按鈕
+  setTimeout(
+    () => {
+      isBtnVisible.value = true;
+    },
+    6 * CONFIG.textStep + 600,
+  );
+};
+
+// --- 工具函式 ---
+const shuffleArray = (arr) => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 };
 
+const loadImage = (src) => {
+  return new Promise((r, j) => {
+    const i = new Image();
+    i.crossOrigin = "Anonymous";
+    i.onload = () => r(i);
+    i.onerror = () => j(src);
+    i.src = src;
+  });
+};
+
+// --- 生命週期 ---
 onMounted(() => {
+  // 稍微延遲以確保 DOM 準備好
   setTimeout(() => {
     openAd();
   }, 500);
-  window.addEventListener("resize", handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
 });
 </script>
 
 <style scoped>
-/* 原有樣式保持不變 */
-.video-container {
+/* --- 全版容器 (取代原本的 body 樣式) --- */
+.ad-container {
   position: fixed;
   top: 0;
   left: 0;
@@ -153,6 +307,8 @@ onUnmounted(() => {
   height: 100dvh;
   background-color: #000;
   z-index: 9999;
+
+  /* 開關動畫 */
   transform: scale(0);
   opacity: 0;
   transform-origin: center center;
@@ -160,33 +316,181 @@ onUnmounted(() => {
     transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 0.4s ease-out;
   pointer-events: none;
+
+  overflow: hidden;
+  font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+  perspective: 2000px;
 }
-.video-container.is-open {
+
+.ad-container.is-open {
   transform: scale(1);
   opacity: 1;
   pointer-events: auto;
 }
-.bg-video {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: cover;
-  z-index: 1;
+
+/* --- 舞台設定 --- */
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-.overlay {
+
+#grid-container {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+#bg-guide-layer,
+#final-perfect-layer {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.3);
+  background-size: 100% 100%;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+#bg-guide-layer.visible,
+#final-perfect-layer.visible {
+  opacity: 1;
+}
+#final-perfect-layer {
+  z-index: 50;
   pointer-events: none;
+}
+
+/* --- 卡片動畫樣式 (由於動態生成，需用 :deep 或直接寫在這) --- */
+/* 注意：因為動態生成的元素在 scoped CSS 內可能抓不到，我們使用 :deep() */
+:deep(.card) {
+  position: absolute;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  transition:
+    transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1),
+    opacity 0.3s ease;
+  opacity: 0;
+  z-index: 10;
+}
+:deep(.card.visible) {
+  opacity: 1;
+}
+
+:deep(.flipper) {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+:deep(.card.flipped .flipper) {
+  transform: rotateY(180deg);
+}
+
+:deep(.front),
+:deep(.back) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+:deep(.front) {
+  background-size: cover;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+:deep(.back) {
+  transform: rotateY(180deg);
+  width: 100.5%;
+  height: 100.5%;
+  left: -0.25%;
+  top: -0.25%;
+}
+
+/* --- Overlay 與文字 --- */
+#ad-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#dark-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  /* 這裡不設 pointer-events，由父層控制 */
+}
+
+.text-container {
+  position: relative;
   z-index: 2;
+  width: 90%;
+  max-width: 800px;
+  text-align: center;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ad-line {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+.ad-line.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.line-main {
+  font-size: 7vh;
+  font-weight: 900;
+  color: #ffbf00;
+  margin-bottom: 4vh;
+  letter-spacing: 5px;
+}
+
+.list-group {
+  display: inline-block;
+  text-align: left;
+  margin: 0 auto;
+}
+
+.line-list {
+  font-size: 3.2vh;
+  font-weight: 500;
+  margin: 1.2vh 0;
+  letter-spacing: 2px;
+  border-left: 3px solid #ffbf00;
+  padding-left: 15px;
+}
+
+.line-footer {
+  font-size: 2.4vh;
+  font-weight: 400;
+  color: #ccc;
+  margin-top: 5vh;
+  line-height: 1.6;
+  letter-spacing: 1px;
 }
 
 /* --- 關閉按鈕樣式 --- */
@@ -194,46 +498,37 @@ onUnmounted(() => {
   position: absolute;
   top: 30px;
   right: 30px;
-  z-index: 20;
+  z-index: 200; /* 要比 overlay 高 */
   width: 56px;
   height: 56px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
-
   background: rgba(255, 255, 255, 0.9);
   color: rgba(0, 0, 0, 0.8);
-
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-
-  /* 【修改點 1】加快動畫速度，從 3s 改為 2s */
   animation: pulse-white 2s infinite;
 }
 
 .close-btn:hover {
   background-color: #ffffff;
   color: #000000;
-  /* 滑鼠經過時的光暈也同步加強 */
   box-shadow: 0 6px 30px rgba(255, 255, 255, 0.8);
   transform: scale(1.05);
 }
 
-/* --- 【修改點 2】加強呼吸燈動畫關鍵影格 --- */
 @keyframes pulse-white {
   0% {
     transform: scale(1);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   }
   50% {
-    /* 加大縮放比例：從 1.05 改為 1.12 (放大 12%) */
     transform: scale(1.12);
-    /* 加強光暈：透明度從 0.4 改為 0.75 (更亮)，擴散範圍從 25px 改為 35px (更廣) */
     box-shadow: 0 10px 35px rgba(255, 255, 255, 0.75);
   }
   100% {
@@ -242,45 +537,33 @@ onUnmounted(() => {
   }
 }
 
-/* 導購按鈕樣式 (保持不變) */
-.cta-wrapper {
-  position: absolute;
-  bottom: 33%;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-.cta-btn {
+/* --- CTA 按鈕 --- */
+.cta-button {
   display: inline-block;
-  padding: 15px 40px;
-  background-color: #fff;
-  color: #000;
-  font-size: 1.2rem;
+  margin-top: 5vh;
+  padding: 1.5vh 4vh;
+  font-size: 2.5vh;
   font-weight: bold;
+  color: #ffbf00;
+  border: 2px solid #ffbf00;
   text-decoration: none;
-  border-radius: 50px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  letter-spacing: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+
   opacity: 0;
-  animation: slideUpFade 0.8s ease-out forwards;
-  transition:
-    transform 0.2s,
-    background-color 0.2s;
+  transform: translateY(20px);
+  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.cta-btn:hover {
-  background-color: #f0f0f0;
-  transform: scale(1.05);
+
+.cta-button.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
-@keyframes slideUpFade {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+
+.cta-button:hover {
+  background: #ffbf00;
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 191, 0, 0.6);
 }
 </style>

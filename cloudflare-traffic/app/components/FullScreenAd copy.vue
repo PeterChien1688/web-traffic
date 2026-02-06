@@ -65,7 +65,7 @@ const AD_COOLDOWN = 1000 * 60 * 30; // 30 分鐘冷卻時間
 
 // --- 狀態 ---
 const isOpen = ref(false);
-const isVideoEnded = ref(false); // 【新增】控制按鈕顯示的狀態
+const isVideoEnded = ref(false);
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
 
@@ -74,24 +74,19 @@ const openAd = async () => {
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
 
-  // 檢查冷卻時間
   if (lastWatchedTime && now - parseInt(lastWatchedTime) < AD_COOLDOWN) {
     return;
   }
 
-  // 重置狀態 (重要！因為元件可能沒被銷毀)
   isVideoEnded.value = false;
 
-  // 1. 決定影片來源
   const width = window.innerWidth;
   const height = window.innerHeight;
   currentVideoSrc.value = width >= height ? landscapeVideo : portraitVideo;
 
-  // 2. 開啟視窗
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
 
-  // 3. 播放邏輯
   await nextTick();
   if (videoRef.value) {
     const video = videoRef.value;
@@ -105,17 +100,14 @@ const openAd = async () => {
   }
 };
 
-// --- 【新增】動作：影片播放結束 ---
+// --- 動作：影片播放結束 ---
 const onVideoEnded = () => {
-  console.log("影片播放完畢，顯示按鈕");
   isVideoEnded.value = true;
-  // 注意：這裡不再呼叫 closeAd()，視窗會保持開啟
 };
 
 // --- 動作：關閉廣告 ---
 const closeAd = () => {
   isOpen.value = false;
-  // 關閉時也要重置按鈕狀態，避免下次開啟時按鈕還在
   setTimeout(() => {
     isVideoEnded.value = false;
     if (videoRef.value) videoRef.value.pause();
@@ -132,8 +124,6 @@ const handleResize = () => {
 
   if (currentVideoSrc.value !== targetSrc) {
     currentVideoSrc.value = targetSrc;
-    // 只有當廣告開啟且影片還沒播完時，才自動重載播放
-    // 如果影片已經播完並顯示按鈕了，就不要再重整影片，以免按鈕消失
     if (isOpen.value && videoRef.value && !isVideoEnded.value) {
       videoRef.value.load();
       videoRef.value.play().catch(() => {});
@@ -194,10 +184,12 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.3); /* 稍微加深遮罩，讓按鈕更凸顯 */
+  background: rgba(0, 0, 0, 0.3);
   pointer-events: none;
   z-index: 2;
 }
+
+/* --- 關閉按鈕樣式 --- */
 .close-btn {
   position: absolute;
   top: 30px;
@@ -208,62 +200,79 @@ onUnmounted(() => {
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.5);
-  color: rgba(255, 255, 255, 0.9);
+
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 0, 0, 0.8);
+
   backdrop-filter: blur(8px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  animation: pulse-red 2.5s infinite;
-}
-.close-btn:hover {
-  background-color: rgba(220, 20, 60, 0.8);
-  color: white;
-  box-shadow: 0 6px 20px rgba(220, 20, 60, 0.5);
+
+  /* 【修改點 1】加快動畫速度，從 3s 改為 2s */
+  animation: pulse-white 2s infinite;
 }
 
-/* --- 【新增樣式】導購按鈕 --- */
+.close-btn:hover {
+  background-color: #ffffff;
+  color: #000000;
+  /* 滑鼠經過時的光暈也同步加強 */
+  box-shadow: 0 6px 30px rgba(255, 255, 255, 0.8);
+  transform: scale(1.05);
+}
+
+/* --- 【修改點 2】加強呼吸燈動畫關鍵影格 --- */
+@keyframes pulse-white {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  50% {
+    /* 加大縮放比例：從 1.05 改為 1.12 (放大 12%) */
+    transform: scale(1.12);
+    /* 加強光暈：透明度從 0.4 改為 0.75 (更亮)，擴散範圍從 25px 改為 35px (更廣) */
+    box-shadow: 0 10px 35px rgba(255, 255, 255, 0.75);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* 導購按鈕樣式 (保持不變) */
 .cta-wrapper {
   position: absolute;
-  /* bottom: 33% 代表位於下方三分之一處 
-     left: 50% + translate(-50%) 確保水平置中
-  */
   bottom: 33%;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 30; /* 確保在影片和遮罩之上 */
+  z-index: 30;
   width: 100%;
   display: flex;
   justify-content: center;
 }
-
 .cta-btn {
   display: inline-block;
   padding: 15px 40px;
-  background-color: #fff; /* 白底 */
-  color: #000; /* 黑字 */
+  background-color: #fff;
+  color: #000;
   font-size: 1.2rem;
   font-weight: bold;
   text-decoration: none;
   border-radius: 50px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-
-  /* 進場動畫 */
   opacity: 0;
   animation: slideUpFade 0.8s ease-out forwards;
   transition:
     transform 0.2s,
     background-color 0.2s;
 }
-
 .cta-btn:hover {
   background-color: #f0f0f0;
-  transform: scale(1.05); /* 滑鼠經過稍微放大 */
+  transform: scale(1.05);
 }
-
-/* 按鈕進場動態效果：從下方滑入並浮現 */
 @keyframes slideUpFade {
   0% {
     opacity: 0;
@@ -272,21 +281,6 @@ onUnmounted(() => {
   100% {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes pulse-red {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  }
-  50% {
-    transform: scale(1.08);
-    box-shadow: 0 8px 25px rgba(220, 20, 60, 0.6);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   }
 }
 </style>
