@@ -67,7 +67,7 @@
 import { ref, onMounted } from "vue";
 
 // --- 設定區 ---
-const AD_COOLDOWN = 1000 * 60 * 30; // 30分鐘冷卻
+const AD_COOLDOWN = 1000 * 60 * 1; // 30分鐘冷卻
 const CONFIG = {
   mainImg: "/main.jpg",
   totalCards: 49,
