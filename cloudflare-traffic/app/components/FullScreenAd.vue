@@ -189,7 +189,7 @@ onUnmounted(() => {
   z-index: 2;
 }
 
-/* --- 【修改重點】關閉按鈕樣式更新 --- */
+/* --- 關閉按鈕樣式 --- */
 .close-btn {
   position: absolute;
   top: 30px;
@@ -201,42 +201,40 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
 
-  /* 1. 背景改為白色 (稍微半透明以保留質感) */
   background: rgba(255, 255, 255, 0.9);
-
-  /* 2. X 圖示顏色改為深色 (視覺上看起來像透明鏤空) */
   color: rgba(0, 0, 0, 0.8);
 
   backdrop-filter: blur(8px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* 陰影改淡一點 */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
 
-  /* 3. 動畫名稱改為白色呼吸燈 */
-  animation: pulse-white 3s infinite;
+  /* 【修改點 1】加快動畫速度，從 3s 改為 2s */
+  animation: pulse-white 2s infinite;
 }
 
-/* 滑鼠經過效果：變為純白底黑字，加強白色光暈 */
 .close-btn:hover {
   background-color: #ffffff;
   color: #000000;
-  box-shadow: 0 6px 25px rgba(255, 255, 255, 0.6); /* 白色光暈 */
+  /* 滑鼠經過時的光暈也同步加強 */
+  box-shadow: 0 6px 30px rgba(255, 255, 255, 0.8);
   transform: scale(1.05);
 }
 
-/* --- 【修改重點】新的白色呼吸燈動畫 --- */
+/* --- 【修改點 2】加強呼吸燈動畫關鍵影格 --- */
 @keyframes pulse-white {
   0% {
     transform: scale(1);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   }
   50% {
-    transform: scale(1.05);
-    /* 淡淡的白色呼吸光暈 */
-    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.4);
+    /* 加大縮放比例：從 1.05 改為 1.12 (放大 12%) */
+    transform: scale(1.12);
+    /* 加強光暈：透明度從 0.4 改為 0.75 (更亮)，擴散範圍從 25px 改為 35px (更廣) */
+    box-shadow: 0 10px 35px rgba(255, 255, 255, 0.75);
   }
   100% {
     transform: scale(1);
@@ -244,7 +242,7 @@ onUnmounted(() => {
   }
 }
 
-/* 導購按鈕樣式 */
+/* 導購按鈕樣式 (保持不變) */
 .cta-wrapper {
   position: absolute;
   bottom: 33%;
