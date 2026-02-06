@@ -33,7 +33,6 @@
       <div v-if="isVideoEnded" class="cta-wrapper">
         <a
           href="https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104"
-          target="_blank"
           class="cta-btn"
         >
           至50期雜誌 ➔
