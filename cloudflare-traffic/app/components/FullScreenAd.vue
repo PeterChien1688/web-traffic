@@ -55,7 +55,7 @@
             class="cta-button"
             :class="{ visible: isBtnVisible }"
           >
-            至50期雜誌 ➔
+            第50期雜誌內容 ➔
           </a>
         </div>
       </div>
