@@ -73,8 +73,7 @@
 import { ref, onMounted } from "vue";
 
 // --- 設定區 ---
-const AD_COOLDOWN = 1000 * 60 * 1; // 30分鐘冷卻
-// 注意：圖片路徑需加上 '/' 代表從 public 根目錄開始
+const AD_COOLDOWN = 1000 * 60 * 30; // 30分鐘冷卻
 const CONFIG = {
   mainImg: "/main.jpg",
   totalCards: 49,
@@ -99,30 +98,26 @@ const darkMaskRef = ref(null);
 
 // --- 動作：開啟廣告 ---
 const openAd = async () => {
-  // 1. Session / LocalStorage 檢查
+  // Session / LocalStorage 檢查
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
-
-  // 如果在冷卻時間內，則不執行
   if (lastWatchedTime && now - parseInt(lastWatchedTime) < AD_COOLDOWN) {
     return;
   }
 
-  // 2. 開啟視窗
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
 
-  // 3. 開始載入圖片並執行動畫
   try {
     const mainImgObj = await loadImage(CONFIG.mainImg);
 
-    // 設定背景圖
+    // 設定背景
     if (bgGuideLayerRef.value)
       bgGuideLayerRef.value.style.backgroundImage = `url(${CONFIG.mainImg})`;
     if (finalLayerRef.value)
       finalLayerRef.value.style.backgroundImage = `url(${CONFIG.mainImg})`;
 
-    // 初始化場景
+    // 開始初始化場景
     initScene(mainImgObj);
   } catch (e) {
     console.error("圖片載入失敗，請確認 public 資料夾", e);
@@ -132,12 +127,15 @@ const openAd = async () => {
 // --- 動作：關閉廣告 ---
 const closeAd = () => {
   isOpen.value = false;
-  // 關閉後可以選擇是否要重置 DOM，這裡簡單處理，下次重新整理頁面才會重播
 };
 
-// --- 動畫核心邏輯 (移植自您的 JS) ---
+// --- 動畫核心邏輯 ---
 const initScene = (mainImgObj) => {
   if (!gridContainerRef.value) return;
+
+  // 清空舊的卡片 (只刪除 .card，保留背景層)
+  const oldCards = gridContainerRef.value.querySelectorAll(".card");
+  oldCards.forEach((el) => el.remove());
 
   // 計算尺寸
   const imgRatio = mainImgObj.width / mainImgObj.height;
@@ -160,6 +158,10 @@ const initScene = (mainImgObj) => {
     cardH = h / rows;
   const startScale = (w * CONFIG.startSizeRatio) / cardW;
 
+  // 【優化重點 1】判斷是否為手機，決定要讀取哪一個資料夾的圖片
+  const isMobile = window.innerWidth < 768;
+  const folderName = isMobile ? "mobile" : "desktop";
+
   // 建立 49 張卡片
   for (let i = 0; i < CONFIG.totalCards; i++) {
     const r = Math.floor(i / cols),
@@ -174,11 +176,11 @@ const initScene = (mainImgObj) => {
     card.style.left = `${targetX}px`;
     card.style.top = `${targetY}px`;
 
-    // 隨機散落位置
     const angle = Math.random() * Math.PI * 2;
     const startX = w / 2 + w * 0.4 * Math.cos(angle);
     const startY = h / 2 + h * 0.4 * Math.sin(angle);
 
+    // 【優化重點 2】加上 translateZ(0) 啟用硬體加速
     card.style.transform = `translate3d(${startX - targetX - cardW / 2}px, ${startY - targetY - cardH / 2}px, 800px) scale(${startScale})`;
 
     const flipper = document.createElement("div");
@@ -186,8 +188,12 @@ const initScene = (mainImgObj) => {
 
     const front = document.createElement("div");
     front.className = "front";
-    // 注意路徑：/tiles/001.jpg
-    const tileUrl = `/tiles/${(i + 1).toString().padStart(3, "0")}.jpg`;
+
+    // 【優化重點 3】動態路徑：根據裝置讀取 /mobile/ 或 /desktop/
+    // 檔名補零邏輯 (001.jpg ~ 049.jpg)
+    const imgIndex = (i + 1).toString().padStart(3, "0");
+    const tileUrl = `/tiles/${folderName}/${imgIndex}.jpg`;
+
     front.style.backgroundImage = `url(${tileUrl})`;
 
     const back = document.createElement("div");
@@ -202,15 +208,13 @@ const initScene = (mainImgObj) => {
     gridContainerRef.value.appendChild(card);
   }
 
-  // 執行序列動畫
   runAnimationSequence();
 };
 
 const runAnimationSequence = () => {
-  // 由於卡片是動態生成的，需要從 DOM 抓取
   const cards = gridContainerRef.value.querySelectorAll(".card");
 
-  // 1. 卡片歸位
+  // 1. 飛行歸位
   cards.forEach((card, i) => {
     setTimeout(() => {
       card.classList.add("visible");
@@ -221,11 +225,11 @@ const runAnimationSequence = () => {
   const flyCompleteTime = (cards.length - 1) * CONFIG.flyInterval + 1200;
 
   setTimeout(() => {
-    // 2. 顯示背景參考層
+    // 2. 顯示背景
     if (bgGuideLayerRef.value) bgGuideLayerRef.value.classList.add("visible");
 
     setTimeout(() => {
-      // 3. 翻轉卡片
+      // 3. 翻牌
       let indices = Array.from({ length: cards.length }, (_, k) => k);
       shuffleArray(indices);
 
@@ -235,7 +239,7 @@ const runAnimationSequence = () => {
         }, i * CONFIG.flipInterval);
       });
 
-      // 4. 翻轉完成後，顯示最終完美層與文字
+      // 4. 文字進場
       setTimeout(
         () => {
           if (finalLayerRef.value) finalLayerRef.value.classList.add("visible");
@@ -250,7 +254,6 @@ const runAnimationSequence = () => {
 const showTextSequence = () => {
   if (darkMaskRef.value) darkMaskRef.value.style.opacity = "1";
 
-  // 依序顯示文字
   for (let i = 1; i <= 7; i++) {
     setTimeout(
       () => {
@@ -261,7 +264,6 @@ const showTextSequence = () => {
     );
   }
 
-  // 文字顯示完畢後，顯示按鈕
   setTimeout(
     () => {
       isBtnVisible.value = true;
@@ -270,7 +272,6 @@ const showTextSequence = () => {
   );
 };
 
-// --- 工具函式 ---
 const shuffleArray = (arr) => {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -288,9 +289,7 @@ const loadImage = (src) => {
   });
 };
 
-// --- 生命週期 ---
 onMounted(() => {
-  // 稍微延遲以確保 DOM 準備好
   setTimeout(() => {
     openAd();
   }, 500);
@@ -298,7 +297,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* --- 全版容器 (取代原本的 body 樣式) --- */
+/* 全版容器 */
 .ad-container {
   position: fixed;
   top: 0;
@@ -308,7 +307,6 @@ onMounted(() => {
   background-color: #000;
   z-index: 9999;
 
-  /* 開關動畫 */
   transform: scale(0);
   opacity: 0;
   transform-origin: center center;
@@ -328,7 +326,7 @@ onMounted(() => {
   pointer-events: auto;
 }
 
-/* --- 舞台設定 --- */
+/* 舞台 */
 #stage {
   position: relative;
   width: 100%;
@@ -364,11 +362,11 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* --- 卡片動畫樣式 (由於動態生成，需用 :deep 或直接寫在這) --- */
-/* 注意：因為動態生成的元素在 scoped CSS 內可能抓不到，我們使用 :deep() */
+/* --- 卡片樣式 (強制優化) --- */
 :deep(.card) {
   position: absolute;
   transform-style: preserve-3d;
+  /* 告訴瀏覽器這些屬性會變化，提前準備 */
   will-change: transform, opacity;
   transition:
     transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1),
@@ -400,11 +398,14 @@ onMounted(() => {
   height: 100%;
   backface-visibility: hidden;
 }
+
 :deep(.front) {
   background-size: cover;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  /* 電腦版保留陰影 */
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
+
 :deep(.back) {
   transform: rotateY(180deg);
   width: 100.5%;
@@ -413,7 +414,40 @@ onMounted(() => {
   top: -0.25%;
 }
 
-/* --- Overlay 與文字 --- */
+/* --- 手機版 CSS 強制優化區 (關鍵) --- */
+@media screen and (max-width: 768px) {
+  /* 1. 移除陰影 (效能殺手) */
+  :deep(.front) {
+    box-shadow: none !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.1); /* 用淡邊框取代陰影 */
+  }
+
+  /* 2. 移除關閉按鈕的毛玻璃與複雜效果 */
+  .close-btn {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 3. 簡化呼吸燈 */
+  @keyframes pulse-white {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+/* --- 文字層 --- */
 #ad-overlay {
   position: fixed;
   top: 0;
@@ -435,7 +469,6 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.7);
   opacity: 0;
   transition: opacity 1.5s ease;
-  /* 這裡不設 pointer-events，由父層控制 */
 }
 
 .text-container {
@@ -468,13 +501,11 @@ onMounted(() => {
   margin-bottom: 4vh;
   letter-spacing: 5px;
 }
-
 .list-group {
   display: inline-block;
   text-align: left;
   margin: 0 auto;
 }
-
 .line-list {
   font-size: 3.2vh;
   font-weight: 500;
@@ -483,7 +514,6 @@ onMounted(() => {
   border-left: 3px solid #ffbf00;
   padding-left: 15px;
 }
-
 .line-footer {
   font-size: 2.4vh;
   font-weight: 400;
@@ -493,12 +523,12 @@ onMounted(() => {
   letter-spacing: 1px;
 }
 
-/* --- 關閉按鈕樣式 --- */
+/* --- 關閉按鈕 --- */
 .close-btn {
   position: absolute;
   top: 30px;
   right: 30px;
-  z-index: 200; /* 要比 overlay 高 */
+  z-index: 200;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -513,6 +543,10 @@ onMounted(() => {
   justify-content: center;
   transition: all 0.3s ease;
   animation: pulse-white 2s infinite;
+
+  /* 強制 GPU 渲染，防止閃爍 */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .close-btn:hover {
