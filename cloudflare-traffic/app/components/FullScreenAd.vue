@@ -30,13 +30,23 @@
         </svg>
       </button>
 
+      <div v-if="isVideoEnded" class="cta-wrapper">
+        <a
+          href="https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104"
+          target="_blank"
+          class="cta-btn"
+        >
+          至50期雜誌 ➔
+        </a>
+      </div>
+
       <video
         ref="videoRef"
         muted
         autoplay
         playsinline
         class="bg-video"
-        @ended="closeAd"
+        @ended="onVideoEnded"
       >
         <source :src="currentVideoSrc" type="video/mp4" />
       </video>
@@ -52,33 +62,26 @@ import { ref, onMounted, onUnmounted, nextTick } from "vue";
 // --- 設定區 ---
 const landscapeVideo = "/videos/landscape.mp4";
 const portraitVideo = "/videos/portrait.mp4";
-
-// 【設定】廣告冷卻時間 (毫秒)
-// 1000 * 60 * 30 = 30 分鐘
-// 1000 * 60 * 60 = 1 小時
-// 如果您希望測試方便，可以先設為 1000 * 10 (10秒)
-const AD_COOLDOWN = 1000 * 60 * 1; // 30 分鐘內不重複顯示
+const AD_COOLDOWN = 1000 * 60 * 30; // 30 分鐘冷卻時間
 
 // --- 狀態 ---
 const isOpen = ref(false);
+const isVideoEnded = ref(false); // 【新增】控制按鈕顯示的狀態
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
 
 // --- 動作：開啟廣告 ---
 const openAd = async () => {
-  // 【修改重點】改用 localStorage 加上時間判斷
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
 
-  // 如果有紀錄，且現在時間 - 上次時間 小於 冷卻時間，就不顯示
+  // 檢查冷卻時間
   if (lastWatchedTime && now - parseInt(lastWatchedTime) < AD_COOLDOWN) {
-    console.log(
-      `廣告還在冷卻時間內，剩餘 ${(AD_COOLDOWN - (now - parseInt(lastWatchedTime))) / 1000} 秒`,
-    );
     return;
   }
 
-  // --- 以下流程不變 ---
+  // 重置狀態 (重要！因為元件可能沒被銷毀)
+  isVideoEnded.value = false;
 
   // 1. 決定影片來源
   const width = window.innerWidth;
@@ -87,13 +90,10 @@ const openAd = async () => {
 
   // 2. 開啟視窗
   isOpen.value = true;
-
-  // 3. 【修改重點】紀錄「現在的時間」到 localStorage (永久儲存直到手動清除)
   localStorage.setItem("ad_watched_time", now.toString());
 
-  // 4. 等待 DOM 更新後播放
+  // 3. 播放邏輯
   await nextTick();
-
   if (videoRef.value) {
     const video = videoRef.value;
     video.muted = true;
@@ -101,26 +101,29 @@ const openAd = async () => {
     video.load();
 
     setTimeout(() => {
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // 失敗重試
-          video.play().catch(() => {});
-        });
-      }
+      video.play().catch(() => video.play().catch(() => {}));
     }, 150);
   }
+};
+
+// --- 【新增】動作：影片播放結束 ---
+const onVideoEnded = () => {
+  console.log("影片播放完畢，顯示按鈕");
+  isVideoEnded.value = true;
+  // 注意：這裡不再呼叫 closeAd()，視窗會保持開啟
 };
 
 // --- 動作：關閉廣告 ---
 const closeAd = () => {
   isOpen.value = false;
+  // 關閉時也要重置按鈕狀態，避免下次開啟時按鈕還在
   setTimeout(() => {
+    isVideoEnded.value = false;
     if (videoRef.value) videoRef.value.pause();
   }, 600);
 };
 
-// --- 響應式：視窗大小改變時 ---
+// --- 響應式處理 ---
 const handleResize = () => {
   if (typeof window === "undefined") return;
 
@@ -130,7 +133,9 @@ const handleResize = () => {
 
   if (currentVideoSrc.value !== targetSrc) {
     currentVideoSrc.value = targetSrc;
-    if (isOpen.value && videoRef.value) {
+    // 只有當廣告開啟且影片還沒播完時，才自動重載播放
+    // 如果影片已經播完並顯示按鈕了，就不要再重整影片，以免按鈕消失
+    if (isOpen.value && videoRef.value && !isVideoEnded.value) {
       videoRef.value.load();
       videoRef.value.play().catch(() => {});
     }
@@ -150,7 +155,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 樣式保持不變 */
+/* 原有樣式保持不變 */
 .video-container {
   position: fixed;
   top: 0;
@@ -190,7 +195,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.3); /* 稍微加深遮罩，讓按鈕更凸顯 */
   pointer-events: none;
   z-index: 2;
 }
@@ -219,6 +224,58 @@ onUnmounted(() => {
   color: white;
   box-shadow: 0 6px 20px rgba(220, 20, 60, 0.5);
 }
+
+/* --- 【新增樣式】導購按鈕 --- */
+.cta-wrapper {
+  position: absolute;
+  /* bottom: 33% 代表位於下方三分之一處 
+     left: 50% + translate(-50%) 確保水平置中
+  */
+  bottom: 33%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30; /* 確保在影片和遮罩之上 */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.cta-btn {
+  display: inline-block;
+  padding: 15px 40px;
+  background-color: #fff; /* 白底 */
+  color: #000; /* 黑字 */
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 50px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
+  /* 進場動畫 */
+  opacity: 0;
+  animation: slideUpFade 0.8s ease-out forwards;
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
+}
+
+.cta-btn:hover {
+  background-color: #f0f0f0;
+  transform: scale(1.05); /* 滑鼠經過稍微放大 */
+}
+
+/* 按鈕進場動態效果：從下方滑入並浮現 */
+@keyframes slideUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes pulse-red {
   0% {
     transform: scale(1);
