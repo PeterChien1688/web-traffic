@@ -1,6 +1,13 @@
 <template>
   <ClientOnly>
-    <div class="ad-container" :class="{ 'is-open': isOpen }">
+    <div
+      class="ad-container"
+      :class="{
+        'is-open': isOpen,
+        'is-landscape': isLandscape,
+        'is-portrait': !isLandscape,
+      }"
+    >
       <button class="close-btn" @click="closeAd" aria-label="關閉廣告">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -45,7 +52,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
-// --- 預設值 ---
 const defaultConfig = {
   landscapeVideo: "/videos/landscape.mp4",
   portraitVideo: "/videos/portrait.mp4",
@@ -53,14 +59,14 @@ const defaultConfig = {
   ctaUrl: "https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104",
 };
 
-// --- 狀態 ---
 const isOpen = ref(false);
 const isVideoEnded = ref(false);
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
 const adConfig = ref({ ...defaultConfig });
+// 新增：判斷是否為橫式
+const isLandscape = ref(true);
 
-// --- 核心：讀取設定檔 ---
 const loadConfig = async () => {
   try {
     const response = await fetch("/ad-config.json");
@@ -74,11 +80,10 @@ const loadConfig = async () => {
       };
     }
   } catch (e) {
-    console.warn("讀取廣告設定失敗，使用預設值", e);
+    console.warn("讀取廣告設定失敗", e);
   }
 };
 
-// --- 動作：開啟廣告 ---
 const openAd = async () => {
   await loadConfig();
 
@@ -92,13 +97,14 @@ const openAd = async () => {
 
   isVideoEnded.value = false;
 
-  // 判斷螢幕方向
+  // 判斷螢幕方向並設定狀態
   const width = window.innerWidth;
   const height = window.innerHeight;
-  currentVideoSrc.value =
-    width >= height
-      ? adConfig.value.landscapeVideo
-      : adConfig.value.portraitVideo;
+  isLandscape.value = width >= height;
+
+  currentVideoSrc.value = isLandscape.value
+    ? adConfig.value.landscapeVideo
+    : adConfig.value.portraitVideo;
 
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
@@ -139,10 +145,12 @@ const handleResize = () => {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const targetSrc =
-    width >= height
-      ? adConfig.value.landscapeVideo
-      : adConfig.value.portraitVideo;
+  // 更新狀態
+  isLandscape.value = width >= height;
+
+  const targetSrc = isLandscape.value
+    ? adConfig.value.landscapeVideo
+    : adConfig.value.portraitVideo;
 
   if (currentVideoSrc.value !== targetSrc) {
     currentVideoSrc.value = targetSrc;
@@ -154,7 +162,6 @@ const handleResize = () => {
 };
 
 onMounted(() => {
-  // 稍微延遲開啟，確保樣式載入
   setTimeout(() => {
     openAd();
   }, 500);
@@ -167,13 +174,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 全版容器 */
 .ad-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100dvh; /* 使用 dvh 避免手機瀏覽器網址列遮擋問題 */
+  height: 100dvh;
   background-color: #000;
   z-index: 9999;
   transform: scale(0);
@@ -195,11 +201,6 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-/* 【關鍵修正】影片樣式 
-  1. object-fit: cover -> 強制填滿螢幕，會裁切多餘部分 (符合您的需求)
-  2. object-position: center -> 從中間開始裁切，確保紅框內容保留
-  3. width/height: 100% -> 撐滿容器
-*/
 .bg-video {
   position: absolute;
   top: 0;
@@ -211,7 +212,6 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-/* 遮罩層 */
 .overlay {
   position: absolute;
   top: 0;
@@ -223,7 +223,6 @@ onUnmounted(() => {
   z-index: 2;
 }
 
-/* 關閉按鈕 */
 .close-btn {
   position: absolute;
   top: 30px;
@@ -275,16 +274,26 @@ onUnmounted(() => {
   }
 }
 
-/* CTA 按鈕 */
+/* --- 按鈕位置設定 --- */
 .cta-wrapper {
   position: absolute;
-  bottom: 15%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
   width: 100%;
   display: flex;
   justify-content: center;
+  transition: bottom 0.3s ease;
+}
+
+/* 橫式 (Landscape)：按鈕靠下 */
+.ad-container.is-landscape .cta-wrapper {
+  bottom: 12%;
+}
+
+/* 直式 (Portrait)：按鈕偏高 */
+.ad-container.is-portrait .cta-wrapper {
+  bottom: 25%;
 }
 
 .cta-button {
@@ -326,11 +335,6 @@ onUnmounted(() => {
 
 /* 手機版優化 (< 768px) */
 @media screen and (max-width: 768px) {
-  /* 手機版同樣維持 cover 模式，
-     確保直式影片填滿螢幕，不留黑邊。
-     因為您的直式影片紅框上下留白很多，
-     即使手機很短被裁切上下，紅框依然安全。
-  */
   .bg-video {
     object-fit: cover;
   }
@@ -366,9 +370,11 @@ onUnmounted(() => {
     }
   }
 
-  .cta-wrapper {
-    bottom: 12%;
+  /* 手機直式微調：如果覺得太高可調低 */
+  .ad-container.is-portrait .cta-wrapper {
+    bottom: 22%;
   }
+
   .cta-button {
     padding: 12px 30px;
     font-size: 18px;
