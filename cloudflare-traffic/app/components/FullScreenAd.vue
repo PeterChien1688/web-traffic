@@ -49,33 +49,73 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
-// --- 設定區 ---
-const landscapeVideo = "/videos/landscape.mp4";
-const portraitVideo = "/videos/portrait.mp4";
-const AD_COOLDOWN = 1000 * 60 * 30; // 30 分鐘冷卻時間
+// --- 預設值 (萬一讀不到 JSON 時的備案) ---
+const defaultConfig = {
+  landscapeVideo: "/videos/landscape.mp4",
+  portraitVideo: "/videos/portrait.mp4",
+  cooldownMinutes: 30,
+};
 
 // --- 狀態 ---
 const isOpen = ref(false);
 const isVideoEnded = ref(false);
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
+// 儲存讀取到的設定
+const adConfig = ref({ ...defaultConfig });
+
+// --- 核心：讀取設定檔 ---
+const loadConfig = async () => {
+  try {
+    // 讀取 public/ad-config.json
+    const response = await fetch("/ad-config.json");
+    if (response.ok) {
+      const data = await response.json();
+      // 更新設定
+      adConfig.value = {
+        landscapeVideo: data.landscapeVideo || defaultConfig.landscapeVideo,
+        portraitVideo: data.portraitVideo || defaultConfig.portraitVideo,
+        cooldownMinutes: data.cooldownMinutes || defaultConfig.cooldownMinutes,
+      };
+    } else {
+      console.warn("找不到 ad-config.json，使用預設值");
+    }
+  } catch (e) {
+    console.error("讀取廣告設定失敗:", e);
+  }
+};
 
 // --- 動作：開啟廣告 ---
 const openAd = async () => {
+  // 1. 先讀取設定
+  await loadConfig();
+
+  // 2. 計算冷卻時間 (將分鐘轉為毫秒)
+  const cooldownMs = adConfig.value.cooldownMinutes * 60 * 1000;
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
-  if (lastWatchedTime && now - parseInt(lastWatchedTime) < AD_COOLDOWN) {
+
+  // 檢查冷卻時間
+  if (lastWatchedTime && now - parseInt(lastWatchedTime) < cooldownMs) {
     return;
   }
 
+  // 重置狀態
   isVideoEnded.value = false;
+
+  // 3. 決定影片來源 (使用設定檔中的路徑)
   const width = window.innerWidth;
   const height = window.innerHeight;
-  currentVideoSrc.value = width >= height ? landscapeVideo : portraitVideo;
+  currentVideoSrc.value =
+    width >= height
+      ? adConfig.value.landscapeVideo
+      : adConfig.value.portraitVideo;
 
+  // 4. 開啟視窗
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
 
+  // 5. 播放邏輯
   await nextTick();
   if (videoRef.value) {
     const video = videoRef.value;
@@ -115,7 +155,11 @@ const handleResize = () => {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const targetSrc = width >= height ? landscapeVideo : portraitVideo;
+  // 使用設定檔中的路徑
+  const targetSrc =
+    width >= height
+      ? adConfig.value.landscapeVideo
+      : adConfig.value.portraitVideo;
 
   if (currentVideoSrc.value !== targetSrc) {
     currentVideoSrc.value = targetSrc;
@@ -156,8 +200,6 @@ onUnmounted(() => {
     opacity 0.4s ease-out;
   pointer-events: none;
   overflow: hidden;
-
-  /* 確保容器內容置中 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,14 +211,12 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-/* 影片本體 (電腦版預設) */
+/* 影片本體 */
 .bg-video {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-
-  /* 電腦版維持 cover，確保氣氛滿版 */
   min-width: 100%;
   min-height: 100%;
   width: auto;
@@ -197,7 +237,7 @@ onUnmounted(() => {
   z-index: 2;
 }
 
-/* --- 關閉按鈕樣式 --- */
+/* 關閉按鈕 */
 .close-btn {
   position: absolute;
   top: 30px;
@@ -249,7 +289,7 @@ onUnmounted(() => {
   }
 }
 
-/* --- CTA 按鈕樣式 --- */
+/* CTA 按鈕 */
 .cta-wrapper {
   position: absolute;
   bottom: 15%;
@@ -298,13 +338,9 @@ onUnmounted(() => {
   }
 }
 
-/* --- 手機版優化與版面修正 (寬度 < 768px) --- */
+/* 手機版優化 (< 768px) */
 @media screen and (max-width: 768px) {
-  /* 【關鍵修正】影片縮放邏輯
-     1. object-fit: contain -> 確保影片內容完整顯示，不被裁切
-     2. width/height: 100% -> 限制影片最大不超過螢幕
-     3. min-width/min-height: 0 -> 移除最小限制，允許影片縮小
-  */
+  /* 手機版: 影片完整顯示 (contain) */
   .bg-video {
     object-fit: contain;
     width: 100%;
