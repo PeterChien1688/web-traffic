@@ -45,12 +45,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
-// --- 預設值 (萬一讀不到 JSON 時的備案) ---
+// --- 預設值 ---
 const defaultConfig = {
   landscapeVideo: "/videos/landscape.mp4",
   portraitVideo: "/videos/portrait.mp4",
   cooldownMinutes: 30,
-  // 【修改重點】新增預設網址
   ctaUrl: "https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104",
 };
 
@@ -59,7 +58,6 @@ const isOpen = ref(false);
 const isVideoEnded = ref(false);
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
-// 儲存讀取到的設定
 const adConfig = ref({ ...defaultConfig });
 
 // --- 核心：讀取設定檔 ---
@@ -68,28 +66,22 @@ const loadConfig = async () => {
     const response = await fetch("/ad-config.json");
     if (response.ok) {
       const data = await response.json();
-      // 更新設定
       adConfig.value = {
         landscapeVideo: data.landscapeVideo || defaultConfig.landscapeVideo,
         portraitVideo: data.portraitVideo || defaultConfig.portraitVideo,
         cooldownMinutes: data.cooldownMinutes || defaultConfig.cooldownMinutes,
-        // 【修改重點】讀取 JSON 中的 ctaUrl
         ctaUrl: data.ctaUrl || defaultConfig.ctaUrl,
       };
-    } else {
-      console.warn("找不到 ad-config.json，使用預設值");
     }
   } catch (e) {
-    console.error("讀取廣告設定失敗:", e);
+    console.warn("讀取廣告設定失敗，使用預設值", e);
   }
 };
 
 // --- 動作：開啟廣告 ---
 const openAd = async () => {
-  // 1. 先讀取設定
   await loadConfig();
 
-  // 2. 計算冷卻時間
   const cooldownMs = adConfig.value.cooldownMinutes * 60 * 1000;
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
@@ -98,10 +90,9 @@ const openAd = async () => {
     return;
   }
 
-  // 重置狀態
   isVideoEnded.value = false;
 
-  // 3. 決定影片來源
+  // 判斷螢幕方向
   const width = window.innerWidth;
   const height = window.innerHeight;
   currentVideoSrc.value =
@@ -109,11 +100,9 @@ const openAd = async () => {
       ? adConfig.value.landscapeVideo
       : adConfig.value.portraitVideo;
 
-  // 4. 開啟視窗
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
 
-  // 5. 播放邏輯
   await nextTick();
   if (videoRef.value) {
     const video = videoRef.value;
@@ -133,12 +122,10 @@ const openAd = async () => {
   }
 };
 
-// --- 動作：影片播放結束 ---
 const onVideoEnded = () => {
   isVideoEnded.value = true;
 };
 
-// --- 動作：關閉廣告 ---
 const closeAd = () => {
   isOpen.value = false;
   setTimeout(() => {
@@ -147,7 +134,6 @@ const closeAd = () => {
   }, 600);
 };
 
-// --- 響應式處理 ---
 const handleResize = () => {
   if (typeof window === "undefined") return;
 
@@ -168,6 +154,7 @@ const handleResize = () => {
 };
 
 onMounted(() => {
+  // 稍微延遲開啟，確保樣式載入
   setTimeout(() => {
     openAd();
   }, 500);
@@ -186,7 +173,7 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100dvh;
+  height: 100dvh; /* 使用 dvh 避免手機瀏覽器網址列遮擋問題 */
   background-color: #000;
   z-index: 9999;
   transform: scale(0);
@@ -208,17 +195,19 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-/* 影片本體 */
+/* 【關鍵修正】影片樣式 
+  1. object-fit: cover -> 強制填滿螢幕，會裁切多餘部分 (符合您的需求)
+  2. object-position: center -> 從中間開始裁切，確保紅框內容保留
+  3. width/height: 100% -> 撐滿容器
+*/
 .bg-video {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  object-position: center center;
   z-index: 1;
 }
 
@@ -337,15 +326,13 @@ onUnmounted(() => {
 
 /* 手機版優化 (< 768px) */
 @media screen and (max-width: 768px) {
+  /* 手機版同樣維持 cover 模式，
+     確保直式影片填滿螢幕，不留黑邊。
+     因為您的直式影片紅框上下留白很多，
+     即使手機很短被裁切上下，紅框依然安全。
+  */
   .bg-video {
-    object-fit: contain;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    object-fit: cover;
   }
 
   .close-btn {
