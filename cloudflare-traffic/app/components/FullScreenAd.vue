@@ -52,7 +52,7 @@ import { ref, onMounted, onUnmounted, nextTick } from "vue";
 // --- 設定區 ---
 const landscapeVideo = "/videos/landscape.mp4";
 const portraitVideo = "/videos/portrait.mp4";
-const AD_COOLDOWN = 1000 * 60 * 1; // 30 分鐘冷卻時間
+const AD_COOLDOWN = 1000 * 60 * 30; // 30 分鐘冷卻時間
 
 // --- 狀態 ---
 const isOpen = ref(false);
@@ -156,6 +156,11 @@ onUnmounted(() => {
     opacity 0.4s ease-out;
   pointer-events: none;
   overflow: hidden;
+
+  /* 確保容器內容置中 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ad-container.is-open {
@@ -164,12 +169,14 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-/* 影片本體 */
+/* 影片本體 (電腦版預設) */
 .bg-video {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+
+  /* 電腦版維持 cover，確保氣氛滿版 */
   min-width: 100%;
   min-height: 100%;
   width: auto;
@@ -245,7 +252,7 @@ onUnmounted(() => {
 /* --- CTA 按鈕樣式 --- */
 .cta-wrapper {
   position: absolute;
-  bottom: 15%; /* 【已修改】將按鈕位置往下調整 */
+  bottom: 15%;
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
@@ -291,8 +298,24 @@ onUnmounted(() => {
   }
 }
 
-/* --- 手機版優化 (寬度 < 768px) --- */
+/* --- 手機版優化與版面修正 (寬度 < 768px) --- */
 @media screen and (max-width: 768px) {
+  /* 【關鍵修正】影片縮放邏輯
+     1. object-fit: contain -> 確保影片內容完整顯示，不被裁切
+     2. width/height: 100% -> 限制影片最大不超過螢幕
+     3. min-width/min-height: 0 -> 移除最小限制，允許影片縮小
+  */
+  .bg-video {
+    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
   .close-btn {
     width: 40px;
     height: 40px;
@@ -324,9 +347,8 @@ onUnmounted(() => {
     }
   }
 
-  /* 手機版按鈕位置微調 */
   .cta-wrapper {
-    bottom: 12%; /* 手機上可以再低一點 */
+    bottom: 12%;
   }
   .cta-button {
     padding: 12px 30px;
