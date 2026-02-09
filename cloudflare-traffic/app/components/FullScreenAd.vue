@@ -21,11 +21,7 @@
       </button>
 
       <div v-if="isVideoEnded" class="cta-wrapper">
-        <a
-          href="https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104"
-          target="_blank"
-          class="cta-button"
-        >
+        <a :href="adConfig.ctaUrl" target="_blank" class="cta-button">
           至50期雜誌 ➔
         </a>
       </div>
@@ -54,6 +50,8 @@ const defaultConfig = {
   landscapeVideo: "/videos/landscape.mp4",
   portraitVideo: "/videos/portrait.mp4",
   cooldownMinutes: 30,
+  // 【修改重點】新增預設網址
+  ctaUrl: "https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104",
 };
 
 // --- 狀態 ---
@@ -67,7 +65,6 @@ const adConfig = ref({ ...defaultConfig });
 // --- 核心：讀取設定檔 ---
 const loadConfig = async () => {
   try {
-    // 讀取 public/ad-config.json
     const response = await fetch("/ad-config.json");
     if (response.ok) {
       const data = await response.json();
@@ -76,6 +73,8 @@ const loadConfig = async () => {
         landscapeVideo: data.landscapeVideo || defaultConfig.landscapeVideo,
         portraitVideo: data.portraitVideo || defaultConfig.portraitVideo,
         cooldownMinutes: data.cooldownMinutes || defaultConfig.cooldownMinutes,
+        // 【修改重點】讀取 JSON 中的 ctaUrl
+        ctaUrl: data.ctaUrl || defaultConfig.ctaUrl,
       };
     } else {
       console.warn("找不到 ad-config.json，使用預設值");
@@ -90,12 +89,11 @@ const openAd = async () => {
   // 1. 先讀取設定
   await loadConfig();
 
-  // 2. 計算冷卻時間 (將分鐘轉為毫秒)
+  // 2. 計算冷卻時間
   const cooldownMs = adConfig.value.cooldownMinutes * 60 * 1000;
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
 
-  // 檢查冷卻時間
   if (lastWatchedTime && now - parseInt(lastWatchedTime) < cooldownMs) {
     return;
   }
@@ -103,7 +101,7 @@ const openAd = async () => {
   // 重置狀態
   isVideoEnded.value = false;
 
-  // 3. 決定影片來源 (使用設定檔中的路徑)
+  // 3. 決定影片來源
   const width = window.innerWidth;
   const height = window.innerHeight;
   currentVideoSrc.value =
@@ -155,7 +153,6 @@ const handleResize = () => {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  // 使用設定檔中的路徑
   const targetSrc =
     width >= height
       ? adConfig.value.landscapeVideo
@@ -340,7 +337,6 @@ onUnmounted(() => {
 
 /* 手機版優化 (< 768px) */
 @media screen and (max-width: 768px) {
-  /* 手機版: 影片完整顯示 (contain) */
   .bg-video {
     object-fit: contain;
     width: 100%;

@@ -1,5 +1,6 @@
 {
   "landscapeVideo": "/videos/landscape.mp4",
   "portraitVideo": "/videos/portrait.mp4",
-  "cooldownMinutes": 1
+  "cooldownMinutes": 1,
+  "ctaUrl": "https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104"
 }
