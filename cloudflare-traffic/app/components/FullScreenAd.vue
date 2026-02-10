@@ -28,9 +28,7 @@
       </button>
 
       <div v-if="isVideoEnded" class="cta-wrapper">
-        <a :href="adConfig.ctaUrl" target="_blank" class="cta-button">
-          至50期雜誌 ➔
-        </a>
+        <a :href="adConfig.ctaUrl" class="cta-button"> 至50期雜誌 ➔ </a>
       </div>
 
       <video
