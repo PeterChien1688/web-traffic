@@ -34,10 +34,11 @@
       <video
         ref="videoRef"
         muted
-        autoplay
         playsinline
+        preload="auto"
         class="bg-video"
         @ended="onVideoEnded"
+        @canplay="onCanPlay"
       >
         <source :src="currentVideoSrc" type="video/mp4" />
       </video>
@@ -51,8 +52,8 @@
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
 const defaultConfig = {
-  landscapeVideo: "/videos/landscape.mp4",
-  portraitVideo: "/videos/portrait.mp4",
+  landscapeVideo: "/videos/landscape_web.mp4",
+  portraitVideo: "/videos/portrait_web.mp4",
   cooldownMinutes: 30,
   ctaUrl: "https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104",
 };
@@ -114,15 +115,24 @@ const openAd = async () => {
     video.playsInline = true;
     video.load();
 
-    setTimeout(() => {
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          video.muted = true;
-          video.play().catch(() => {});
-        });
-      }
-    }, 150);
+    // setTimeout(() => {
+    //   const playPromise = video.play();
+    //   if (playPromise !== undefined) {
+    //     playPromise.catch(() => {
+    //       video.muted = true;
+    //       video.play().catch(() => {});
+    //     });
+    //   }
+    // }, 150);
+  }
+};
+
+// 【新增】當影片下載了足夠的緩衝，可以順暢播放時，瀏覽器會觸發這個事件
+const onCanPlay = () => {
+  if (videoRef.value && isOpen.value) {
+    videoRef.value.play().catch((e) => {
+      console.warn("自動播放受阻:", e);
+    });
   }
 };
 
