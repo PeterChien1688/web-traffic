@@ -28,8 +28,12 @@
       </button>
 
       <div v-if="isVideoEnded" class="cta-wrapper">
-        <a :href="adConfig.ctaUrl" class="cta-button"> 至50期雜誌 ➔ </a>
+        <a :href="adConfig.ctaUrl" target="_blank" class="cta-button">
+          至50期雜誌 ➔
+        </a>
       </div>
+
+      <div v-if="!isVideoReady" class="loading-spinner"></div>
 
       <video
         ref="videoRef"
@@ -37,6 +41,7 @@
         playsinline
         preload="auto"
         class="bg-video"
+        :class="{ 'is-ready': isVideoReady }"
         @ended="onVideoEnded"
         @canplay="onCanPlay"
       >
@@ -51,41 +56,70 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
+// --- 預設值 (4 支影片版本) ---
 const defaultConfig = {
-  landscapeVideo: "/videos/landscape_web.mp4",
-  portraitVideo: "/videos/portrait_web.mp4",
+  landscapeVideoDesktop: "/videos/landscape_desktop.mp4",
+  portraitVideoDesktop: "/videos/portrait_desktop.mp4",
+  landscapeVideoMobile: "/videos/landscape_mobile.mp4",
+  portraitVideoMobile: "/videos/portrait_mobile.mp4",
   cooldownMinutes: 30,
   ctaUrl: "https://wisdomhall.com.tw/tw/magazine_inpage.php?id=104",
 };
 
+// --- 狀態控制 ---
 const isOpen = ref(false);
 const isVideoEnded = ref(false);
+const isVideoReady = ref(false); // 影片是否已經緩衝完畢可播放
 const currentVideoSrc = ref("");
 const videoRef = ref(null);
 const adConfig = ref({ ...defaultConfig });
-// 新增：判斷是否為橫式
 const isLandscape = ref(true);
 
+// --- 讀取外部 JSON 設定 ---
 const loadConfig = async () => {
   try {
     const response = await fetch("/ad-config.json");
     if (response.ok) {
       const data = await response.json();
       adConfig.value = {
-        landscapeVideo: data.landscapeVideo || defaultConfig.landscapeVideo,
-        portraitVideo: data.portraitVideo || defaultConfig.portraitVideo,
+        landscapeVideoDesktop:
+          data.landscapeVideoDesktop || defaultConfig.landscapeVideoDesktop,
+        portraitVideoDesktop:
+          data.portraitVideoDesktop || defaultConfig.portraitVideoDesktop,
+        landscapeVideoMobile:
+          data.landscapeVideoMobile || defaultConfig.landscapeVideoMobile,
+        portraitVideoMobile:
+          data.portraitVideoMobile || defaultConfig.portraitVideoMobile,
         cooldownMinutes: data.cooldownMinutes || defaultConfig.cooldownMinutes,
         ctaUrl: data.ctaUrl || defaultConfig.ctaUrl,
       };
     }
   } catch (e) {
-    console.warn("讀取廣告設定失敗", e);
+    console.warn("讀取廣告設定失敗，使用預設值", e);
   }
 };
 
+// --- 判斷應該載入哪一支影片 ---
+const getTargetVideoSrc = (width, height) => {
+  const isCurrentlyLandscape = width >= height;
+  const isDesktop = width >= 1024; // 1024px 為電腦/平板分水嶺
+
+  if (isDesktop) {
+    return isCurrentlyLandscape
+      ? adConfig.value.landscapeVideoDesktop
+      : adConfig.value.portraitVideoDesktop;
+  } else {
+    return isCurrentlyLandscape
+      ? adConfig.value.landscapeVideoMobile
+      : adConfig.value.portraitVideoMobile;
+  }
+};
+
+// --- 開啟廣告邏輯 ---
 const openAd = async () => {
   await loadConfig();
 
+  // 檢查冷卻時間
   const cooldownMs = adConfig.value.cooldownMinutes * 60 * 1000;
   const lastWatchedTime = localStorage.getItem("ad_watched_time");
   const now = new Date().getTime();
@@ -94,77 +128,72 @@ const openAd = async () => {
     return;
   }
 
+  // 重置所有狀態
   isVideoEnded.value = false;
+  isVideoReady.value = false;
 
-  // 判斷螢幕方向並設定狀態
   const width = window.innerWidth;
   const height = window.innerHeight;
   isLandscape.value = width >= height;
 
-  currentVideoSrc.value = isLandscape.value
-    ? adConfig.value.landscapeVideo
-    : adConfig.value.portraitVideo;
+  // 取得對應解析度的影片
+  currentVideoSrc.value = getTargetVideoSrc(width, height);
 
   isOpen.value = true;
   localStorage.setItem("ad_watched_time", now.toString());
 
+  // 觸發影片預載入
   await nextTick();
   if (videoRef.value) {
     const video = videoRef.value;
     video.muted = true;
     video.playsInline = true;
-    video.load();
-
-    // setTimeout(() => {
-    //   const playPromise = video.play();
-    //   if (playPromise !== undefined) {
-    //     playPromise.catch(() => {
-    //       video.muted = true;
-    //       video.play().catch(() => {});
-    //     });
-    //   }
-    // }, 150);
+    video.load(); // 這裡不直接 play()，交給 onCanPlay 處理
   }
 };
 
-// 【新增】當影片下載了足夠的緩衝，可以順暢播放時，瀏覽器會觸發這個事件
+// --- 當影片緩衝足夠，準備好播放時觸發 ---
 const onCanPlay = () => {
   if (videoRef.value && isOpen.value) {
+    isVideoReady.value = true; // 狀態改為 ready，觸發畫面漸顯並隱藏 spinner
     videoRef.value.play().catch((e) => {
       console.warn("自動播放受阻:", e);
     });
   }
 };
 
+// --- 影片結束時觸發 ---
 const onVideoEnded = () => {
   isVideoEnded.value = true;
 };
 
+// --- 關閉廣告邏輯 ---
 const closeAd = () => {
   isOpen.value = false;
   setTimeout(() => {
     isVideoEnded.value = false;
+    isVideoReady.value = false;
     if (videoRef.value) videoRef.value.pause();
   }, 600);
 };
 
+// --- 視窗縮放處理 ---
 const handleResize = () => {
   if (typeof window === "undefined") return;
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  // 更新狀態
   isLandscape.value = width >= height;
 
-  const targetSrc = isLandscape.value
-    ? adConfig.value.landscapeVideo
-    : adConfig.value.portraitVideo;
+  const targetSrc = getTargetVideoSrc(width, height);
 
+  // 如果跨越了斷點或轉向導致需要換影片，才重新載入
   if (currentVideoSrc.value !== targetSrc) {
     currentVideoSrc.value = targetSrc;
     if (isOpen.value && videoRef.value && !isVideoEnded.value) {
+      isVideoReady.value = false; // 換片時先退回 Loading 狀態
       videoRef.value.load();
-      videoRef.value.play().catch(() => {});
+      // play() 會在 onCanPlay 再次被觸發
     }
   }
 };
@@ -182,6 +211,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 全版容器 */
 .ad-container {
   position: fixed;
   top: 0;
@@ -209,6 +239,7 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
+/* 影片本體 (預設透明度為 0) */
 .bg-video {
   position: absolute;
   top: 0;
@@ -218,8 +249,40 @@ onUnmounted(() => {
   object-fit: cover;
   object-position: center center;
   z-index: 1;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
 }
 
+/* 當影片 Ready 時平滑浮現 */
+.bg-video.is-ready {
+  opacity: 1;
+}
+
+/* 載入中動畫 Spinner */
+.loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 191, 0, 0.2);
+  border-top-color: #ffbf00;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 10;
+}
+
+@keyframes spin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* 遮罩層 */
 .overlay {
   position: absolute;
   top: 0;
@@ -231,6 +294,7 @@ onUnmounted(() => {
   z-index: 2;
 }
 
+/* 關閉按鈕 */
 .close-btn {
   position: absolute;
   top: 30px;
