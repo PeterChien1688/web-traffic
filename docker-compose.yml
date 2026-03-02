@@ -13,19 +13,50 @@ services:
       - NUXT_PORT=3000
       - NUXT_SECRET=my-super-secret-key-change-this
 
-      # --- 主資料庫 (原本就有 NUXT_，保持原樣) ---
+      # --- 主資料庫 ---
       - NUXT_DB_HOST=172.17.0.1
       - NUXT_DB_USER=root
       - NUXT_DB_PASSWORD=!Wis@53952935
       - NUXT_DB_NAME=app_db
 
-      # --- 流量資料庫 (🔥 加上 NUXT_ 前綴) ---
+      # --- 流量資料庫 ---
       - NUXT_TRAFFIC_DB_HOST=172.17.0.1
       - NUXT_TRAFFIC_DB_USER=traffic_admin
       - NUXT_TRAFFIC_DB_PASSWORD=Traffic-2026-Go
       - NUXT_TRAFFIC_DB_NAME=traffic_db
 
-      # --- Cloudflare 設定 (🔥 加上 NUXT_ 前綴) ---
+      # --- Cloudflare 設定 ---
       - NUXT_CF_API_TOKEN=5w7ureqSAn5UbUg6u3zlmlXtB9-EjcYn5y2vqENX
       - NUXT_CF_ZONE_ID_TW=c244911f7e3a7cf3f1ade0b4ab43982f
       - NUXT_CF_ZONE_ID_MY=156893be0036d4e6a7975d2bfbf91aba
+
+  # ▼▼▼ 新增 Zabbix Server 核心 ▼▼▼
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:alpine-7.0-latest
+    container_name: zabbix-server
+    restart: always
+    environment:
+      - DB_SERVER_HOST=172.17.0.1
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=!Wis@53952935
+      - ZBX_CACHESIZE=256M
+    ports:
+      - "10051:10051" # 這是預留給後續 Zabbix Agent 回傳資料的 Port
+
+  # ▼▼▼ 新增 Zabbix Web 前端介面 ▼▼▼
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-mysql:alpine-7.0-latest
+    container_name: zabbix-web
+    restart: always
+    ports:
+      - "3004:8080" # 對外開啟 3004 Port，對應容器內 Nginx 預設的 8080
+    environment:
+      - DB_SERVER_HOST=172.17.0.1
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=!Wis@53952935
+      - ZBX_SERVER_HOST=zabbix-server
+      - PHP_TZ=Asia/Taipei
+    depends_on:
+      - zabbix-server
