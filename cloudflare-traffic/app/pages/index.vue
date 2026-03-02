@@ -21,11 +21,21 @@
     </ul>
 
     <div v-if="user && user.role === 'administrators'" class="admin-zone">
-      <h3>🛡️ 管理功能</h3>
-      <p>您擁有管理員權限，可進入後台管理帳號與排程。</p>
-      <NuxtLink to="/admin" class="btn admin-btn"> ⚙️ 進入管理頁面 </NuxtLink>
-    </div>
+      <h3>🛡️ 管理功能與基礎設施</h3>
+      <p>您擁有管理員權限，可進入後台管理帳號與排程，或檢視伺服器監控狀態。</p>
 
+      <div class="action-buttons">
+        <NuxtLink to="/admin" class="btn admin-btn"> ⚙️ 進入管理頁面 </NuxtLink>
+        <a
+          href="/zabbix"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn zabbix-btn"
+        >
+          📈 Zabbix 系統監控
+        </a>
+      </div>
+    </div>
     <button v-if="user" @click="logout" class="btn logout-btn">登出</button>
   </div>
 </template>
@@ -36,7 +46,7 @@ interface User {
   id: number;
   username: string;
   name: string;
-  role: string; // 👈 記得要在這裡補上 role
+  role: string;
 }
 
 const user = ref<User | null>(null);
@@ -44,8 +54,6 @@ const user = ref<User | null>(null);
 /** 取得目前登入者 */
 onMounted(async () => {
   try {
-    // 1. 在 URL 後面加上 'as any' 避開路由型別檢查
-    // 2. 在 $fetch 後面加上 <User> 明確指定回傳型別
     user.value = await $fetch<User>("/api/auth/me" as any, {
       credentials: "include",
     });
@@ -66,7 +74,7 @@ const logout = async () => {
 </script>
 
 <style scoped>
-/* 簡單的樣式美化 */
+/* === 原有樣式 === */
 .admin-zone {
   margin-top: 30px;
   padding: 20px;
@@ -100,4 +108,22 @@ const logout = async () => {
   background-color: #909399;
   color: white;
 }
+
+/* ▼▼▼ 新增樣式：按鈕群組與 Zabbix 按鈕 ▼▼▼ */
+.action-buttons {
+  display: flex;
+  gap: 15px; /* 讓兩個按鈕中間有間距 */
+  margin-top: 15px;
+}
+
+.zabbix-btn {
+  background-color: #d32f2f; /* 使用代表監控系統的深紅色，與橘黃色做區隔 */
+  color: white;
+  font-weight: bold;
+}
+
+.zabbix-btn:hover {
+  background-color: #b71c1c;
+}
+/* ▲▲▲ 新增樣式結束 ▲▲▲ */
 </style>
