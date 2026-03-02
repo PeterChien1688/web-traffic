@@ -1,6 +1,6 @@
 {
-  "landscapeVideoDesktop": "/videos/landscape_desktop_v2.mp4",
-  "portraitVideoDesktop": "/videos/portrait_desktop_v2.mp4",
+  "landscapeVideoDesktop": "/videos/landscape_desktop.mp4",
+  "portraitVideoDesktop": "/videos/portrait_desktop.mp4",
   "landscapeVideoMobile": "/videos/landscape_mobile.mp4",
   "portraitVideoMobile": "/videos/portrait_mobile.mp4",
   "cooldownMinutes": 1,
