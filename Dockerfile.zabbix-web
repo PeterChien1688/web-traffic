@@ -1,0 +1,17 @@
+# 繼承原本的 Ubuntu 版本 Zabbix Web 映像檔
+FROM zabbix/zabbix-web-nginx-mysql:ubuntu-7.0-latest
+
+# 切換到 root 權限來執行安裝與修改
+USER root
+
+# 1. 安裝並產生繁體中文語系 (對應您查到的 dpkg-reconfigure locales)
+RUN apt-get update && \
+    apt-get install -y locales && \
+    locale-gen zh_TW.UTF-8 && \
+    rm -rf /var/lib/apt/lists/*
+
+# 2. 修改 PHP 設定檔，強制顯示繁體中文 (對應您查到的 vi 修改)
+RUN sed -i "/'zh_TW'/s/'display' => false/'display' => true/" /usr/share/zabbix/include/locales.inc.php
+
+# 切回 Zabbix 預設的非 root 使用者 (UID 1997) 以確保資安規範
+USER 1997
