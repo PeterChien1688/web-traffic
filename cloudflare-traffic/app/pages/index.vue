@@ -26,7 +26,7 @@
         :href="
           user.role === 'administrators'
             ? '/zabbix/'
-            : '/zabbix/zabbix.php?action=dashboard.view&dashboardid=399'
+            : '/zabbix/index.php?enter=guest'
         "
         target="_blank"
         rel="noopener noreferrer"
@@ -40,7 +40,7 @@
         {{
           user.role === "administrators"
             ? "⚙️ Zabbix 系統管理後台"
-            : "📈 Zabbix 戰情看板"
+            : "📈 WisdomHall設備資訊"
         }}
       </a>
     </div>
