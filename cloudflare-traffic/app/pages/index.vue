@@ -21,18 +21,31 @@
     </ul>
 
     <h3>📈 系統與設備狀態</h3>
-    <div style="margin-bottom: 20px">
+    <div style="margin-bottom: 20px" v-if="user">
       <a
-        href="/zabbix"
+        :href="
+          user.role === 'administrators'
+            ? '/zabbix/'
+            : '/zabbix/zabbix.php?action=dashboard.view&dashboardid=399'
+        "
         target="_blank"
         rel="noopener noreferrer"
-        class="btn zabbix-btn"
+        :class="[
+          'btn',
+          user.role === 'administrators'
+            ? 'admin-zabbix-btn'
+            : 'guest-zabbix-btn',
+        ]"
       >
-        📈 Zabbix 系統監控
+        {{
+          user.role === "administrators"
+            ? "⚙️ Zabbix 系統管理後台"
+            : "📈 Zabbix 戰情看板"
+        }}
       </a>
     </div>
     <div v-if="user && user.role === 'administrators'" class="admin-zone">
-      <h3>🛡️ 管理員功能</h3>
+      <h3>🛡️ 管理功能與基礎設施</h3>
       <p>您擁有管理員權限，可進入後台管理帳號與排程設定。</p>
 
       <div class="action-buttons">
@@ -113,21 +126,33 @@ const logout = async () => {
   color: white;
 }
 
-/* ▼▼▼ 按鈕群組與 Zabbix 按鈕 ▼▼▼ */
+/* ▼▼▼ 新增/修改樣式：按鈕群組與不同身分的 Zabbix 按鈕 ▼▼▼ */
 .action-buttons {
   display: flex;
-  gap: 15px; /* 讓多個按鈕中間有間距 */
+  gap: 15px; /* 讓兩個按鈕中間有間距 */
   margin-top: 15px;
 }
 
-.zabbix-btn {
-  background-color: #d32f2f; /* 使用代表監控系統的深紅色，與橘黃色做區隔 */
+/* 一般使用者看到的戰情看板按鈕 (深紅色) */
+.guest-zabbix-btn {
+  background-color: #d32f2f;
   color: white;
   font-weight: bold;
 }
 
-.zabbix-btn:hover {
+.guest-zabbix-btn:hover {
   background-color: #b71c1c;
 }
-/* ▲▲▲ 新增樣式結束 ▲▲▲ */
+
+/* 管理員看到的後台管理按鈕 (深藍色，區分管理情境) */
+.admin-zabbix-btn {
+  background-color: #1976d2;
+  color: white;
+  font-weight: bold;
+}
+
+.admin-zabbix-btn:hover {
+  background-color: #115293;
+}
+/* ▲▲▲ 新增/修改樣式結束 ▲▲▲ */
 </style>
