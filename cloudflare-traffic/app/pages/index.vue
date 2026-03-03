@@ -20,22 +20,26 @@
       </li>
     </ul>
 
+    <h3>📈 系統與設備狀態</h3>
+    <div style="margin-bottom: 20px">
+      <a
+        href="/zabbix"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn zabbix-btn"
+      >
+        📈 Zabbix 系統監控
+      </a>
+    </div>
     <div v-if="user && user.role === 'administrators'" class="admin-zone">
-      <h3>🛡️ 管理功能與基礎設施</h3>
-      <p>您擁有管理員權限，可進入後台管理帳號與排程，或檢視伺服器監控狀態。</p>
+      <h3>🛡️ 管理員功能</h3>
+      <p>您擁有管理員權限，可進入後台管理帳號與排程設定。</p>
 
       <div class="action-buttons">
         <NuxtLink to="/admin" class="btn admin-btn"> ⚙️ 進入管理頁面 </NuxtLink>
-        <a
-          href="/zabbix"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="btn zabbix-btn"
-        >
-          📈 Zabbix 系統監控
-        </a>
       </div>
     </div>
+
     <button v-if="user" @click="logout" class="btn logout-btn">登出</button>
   </div>
 </template>
@@ -109,10 +113,10 @@ const logout = async () => {
   color: white;
 }
 
-/* ▼▼▼ 新增樣式：按鈕群組與 Zabbix 按鈕 ▼▼▼ */
+/* ▼▼▼ 按鈕群組與 Zabbix 按鈕 ▼▼▼ */
 .action-buttons {
   display: flex;
-  gap: 15px; /* 讓兩個按鈕中間有間距 */
+  gap: 15px; /* 讓多個按鈕中間有間距 */
   margin-top: 15px;
 }
 
