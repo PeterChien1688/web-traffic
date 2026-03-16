@@ -33,8 +33,8 @@ jobs:
             # 1. 進入專案目錄
             cd ~/web-server/web-traffic
 
-            # 2. 停止舊容器
-            docker compose down
+            # 2. 讓伺服器自己拉取最新程式碼 (取代原本的 scp-action)
+            git pull origin main
 
             # 3. 重新建置並啟動新容器
             docker compose up -d --build
