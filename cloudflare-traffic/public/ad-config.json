@@ -3,6 +3,6 @@
   "portraitVideoDesktop": "/videos/portrait_desktopv3.mp4",
   "landscapeVideoMobile": "/videos/landscape_mobilev3.mp4",
   "portraitVideoMobile": "/videos/portrait_mobilev3.mp4",
-  "cooldownMinutes": 180,
+  "cooldownMinutes": 240,
   "ctaUrl": "https://learning.wisdomhall.com.tw/posts/69855cd3b0a67fd324ac0ade"
 }
